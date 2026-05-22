@@ -20,7 +20,7 @@ class Base(DeclarativeBase):
 
 
 def init_db() -> None:
-    from app.models import region, scenario_run  # noqa: F401  регистрация моделей
+    from app.models import region, scenario_run, timeseries, seir_params  # noqa: F401  регистрация моделей
 
     Base.metadata.create_all(bind=engine)
 

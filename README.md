@@ -13,6 +13,35 @@ make psql              # зайти в БД
 make front-reset       # пересобрать фронт (после правок package.json)
 make down              # остановить (БД сохраняется)
 make clean             # полный сброс (СНЕСЁТ БД!)
+
+# Этап 1 — данные
+make seed              # засеять regions + timeseries + seir_params
+make seed-check        # проверить что засеялось
+```
+
+## Сидеры данных (Этап 1)
+
+После первого `make up` (или после `make clean && make up`) база пустая.
+Команда `make seed` наполняет её данными из старого проекта:
+
+| Что | Источник | Куда | Объём |
+|---|---|---|---|
+| 75 регионов РФ | `regions_data.py` (распарсено из `ORIGINAL/new-covid-main/src/Covid.js`) | таблица `regions` | 75 строк |
+| Временные ряды | `data/regions/{Novosibirsk,Omsk,Altai}.csv` (из `ORIGINAL/server.app.covid19-modeling-main/`) | таблица `timeseries` | ~2200 строк |
+| Параметры SEIR | `data/seir/params_08_04_2022.json` | таблица `seir_params` | 1 запись (label=`08_04_2022`, region=`novosibirsk`) |
+
+Сидеры **идемпотентны** (ON CONFLICT DO NOTHING) — можно запускать многократно. Проверка:
+
+```bash
+make seed-check
+# regions count → 75
+# timeseries by region → novosibirsk/omsk/altay с диапазонами дат
+# seir_params → одна запись с label='08_04_2022'
+
+# или через API
+curl http://localhost:8000/api/v1/regions | jq 'length'         # → 75
+curl http://localhost:8000/api/v1/regions/novosibirsk | jq
+curl "http://localhost:8000/api/v1/regions/novosibirsk/timeseries?date_from=2020-03-12&date_to=2020-03-20" | jq
 ```
 
 ## Залив в GitHub (пустой репозиторий)
@@ -138,7 +167,7 @@ docker compose up --build     # первая сборка ~5 мин (npm install
 | http://localhost:8000/docs | Swagger UI (FastAPI) |
 | http://localhost:8000/api/v1/regions | список регионов (пустой пока БД не засеяна) |
 | http://localhost:3000 | React-фронт, страница HealthCheck дергает оба endpoint'а |
-| `psql -h localhost -p 5432 -U ai_biolab -d ai_biolab` | прямой доступ к БД (пароль `changeme`) |
+| `psql -h localhost -p 15432 -U ai_biolab -d ai_biolab` | прямой доступ к БД (пароль `changeme`); порт 15432 чтобы не конфликтовать с локальными PG. Или `make psql` через docker exec — обходит порт |
 
 ### Проверка работоспособности
 

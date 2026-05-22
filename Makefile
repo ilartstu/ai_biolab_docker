@@ -68,9 +68,13 @@ sh-front:
 sh-db:
 	$(COMPOSE) exec db bash
 
-## psql              psql внутри db-контейнера
+## psql              psql внутри db-контейнера (без пароля, через docker exec)
 psql:
 	$(COMPOSE) exec db psql -U ai_biolab -d ai_biolab
+
+## psql-host         psql с хоста через 5433 (берёт пароль из .env)
+psql-host:
+	@bash -c 'set -a && source .env && set +a && PGPASSWORD=$$POSTGRES_PASSWORD psql -h localhost -p $$POSTGRES_PORT -U $$POSTGRES_USER -d $$POSTGRES_DB'
 
 ## ───── Healthcheck и smoke-тесты ─────
 
@@ -103,6 +107,33 @@ front-reset:
 front-install:
 	$(COMPOSE) exec frontend npm install $(p) --legacy-peer-deps
 
+## ───── Seed данных (Этап 1) ─────
+
+## seed              запустить все сидеры: regions + timeseries + seir_params
+seed:
+	$(COMPOSE) exec api python -m app.scripts.seed_all
+
+## seed-regions      засеять только regions (75 регионов из Covid.js)
+seed-regions:
+	$(COMPOSE) exec api python -m app.scripts.seed_regions
+
+## seed-timeseries   засеять только timeseries из CSV в data/regions/
+seed-timeseries:
+	$(COMPOSE) exec api python -m app.scripts.seed_timeseries
+
+## seed-seir         засеять только seir_params из data/seir/
+seed-seir:
+	$(COMPOSE) exec api python -m app.scripts.seed_seir_params
+
+## seed-check        проверить, что данные засеялись
+seed-check:
+	@echo "── regions count ──"
+	@$(COMPOSE) exec db psql -U ai_biolab -d ai_biolab -t -c "SELECT count(*) FROM regions;"
+	@echo "── timeseries by region ──"
+	@$(COMPOSE) exec db psql -U ai_biolab -d ai_biolab -c "SELECT region_slug, count(*), min(date), max(date) FROM timeseries GROUP BY region_slug ORDER BY region_slug;"
+	@echo "── seir_params ──"
+	@$(COMPOSE) exec db psql -U ai_biolab -d ai_biolab -c "SELECT id, region_slug, label, created_at FROM seir_params;"
+
 ## ───── Backend / Alembic ─────
 
 ## migrate           применить миграции Alembic
@@ -123,10 +154,17 @@ migrate-down:
 clean:
 	$(COMPOSE) down -v
 
+## clean-pg-legacy   снести старый volume от PG 16 (если остался после апгрейда)
+clean-pg-legacy:
+	-docker volume rm ai_biolab_pg_data 2>/dev/null
+	-docker volume rm ai_biolab_pg18_data 2>/dev/null
+	@echo "Старые PG-volume'ы снесены (если были)"
+
 ## prune             docker system prune (чистка dangling-образов)
 prune:
 	docker system prune -f
 
 .PHONY: help up up-fg down restart ps build rebuild logs logs-api logs-front logs-db \
-        sh-api sh-front sh-db psql health smoke front-reset front-install \
-        migrate migrate-new migrate-down clean prune
+        sh-api sh-front sh-db psql psql-host health smoke front-reset front-install \
+        seed seed-regions seed-timeseries seed-seir seed-check \
+        migrate migrate-new migrate-down clean clean-pg-legacy prune

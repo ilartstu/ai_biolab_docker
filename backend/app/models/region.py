@@ -13,4 +13,7 @@ class Region(Base):
     slug: Mapped[str] = mapped_column(String(64), unique=True, index=True)
     name: Mapped[str] = mapped_column(String(255))
     district: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    center: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     population: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    area: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    density: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)

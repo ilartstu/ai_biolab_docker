@@ -7,7 +7,10 @@ class RegionBase(BaseModel):
     slug: str
     name: str
     district: Optional[str] = None
+    center: Optional[str] = None
     population: Optional[int] = None
+    area: Optional[str] = None
+    density: Optional[str] = None
 
 
 class RegionRead(RegionBase):
