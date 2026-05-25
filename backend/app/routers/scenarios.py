@@ -1,21 +1,29 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.schemas.scenario import ScenarioRunRequest, ScenarioRunResponse
-from app.services.scenario_service import ScenarioService
+from app.services.scenario_service import ScenarioService, execute_run_in_background
 
 router = APIRouter(prefix="/scenarios", tags=["scenarios"])
 
 
 @router.post("/run", response_model=ScenarioRunResponse, status_code=202)
-def run_scenario(payload: ScenarioRunRequest, db: Session = Depends(get_db)):
-    """Запуск SEIR-сценария (Covasim). Заменяет POST /data из старого Node-бэка.
+def run_scenario(
+    payload: ScenarioRunRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
+    """Запустить SEIR-сценарий (Covasim) в фоне.
 
-    На текущем этапе — STUB: пишет запись в БД и возвращает синтетический результат.
-    Реальный запуск через `app/modeling/seir.py` после переноса dlya_kati.py.
+    Возвращает 202 + run_id СРАЗУ. Реальный расчёт занимает десятки секунд —
+    после возврата стартует BackgroundTask, который вызывает run_seir().
+    Клиент должен опрашивать GET /scenarios/{run_id} до status='completed' или 'failed'.
     """
-    return ScenarioService(db).start_run(payload)
+    service = ScenarioService(db)
+    run = service.create_pending_run(payload)
+    background_tasks.add_task(execute_run_in_background, run.id)
+    return run
 
 
 @router.get("/{run_id}", response_model=ScenarioRunResponse)

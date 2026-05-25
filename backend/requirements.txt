@@ -1,8 +1,22 @@
+# Web framework
 fastapi==0.115.0
 uvicorn[standard]==0.30.6
+python-multipart==0.0.10
+
+# Database
 sqlalchemy==2.0.35
 psycopg[binary]==3.2.3
 alembic==1.13.3
+
+# Config / validation
 pydantic==2.9.2
 pydantic-settings==2.5.2
-python-multipart==0.0.10
+
+# Modeling (Этап 2)
+# covasim тянет numpy/pandas/scipy/sciris/matplotlib транзитивно
+covasim==3.1.6
+# statsmodels — для SARIMAX (используется внутри future_extr из SEIR)
+# unpinned: scipy 1.17 убрал _lazywhere, нужна свежая версия (>=0.14.5)
+statsmodels>=0.14.5
+# tqdm — для прогресс-бара в best_SARIMAX
+tqdm>=4.66

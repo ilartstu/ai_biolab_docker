@@ -272,3 +272,93 @@ docker compose exec api alembic upgrade head
 - ⏸ Сидер регионов — добавится отдельной задачей.
 - ⏸ Перенос 130+ страниц фронта — отдельной задачей.
 - ⏸ Карта РФ / выпадашка — отдельной задачей (решение по стеку отложено).
+
+
+# Backend WIP — попытка переноса SEIR/Covasim (Этап 2)
+
+Эта ветка содержит **незавершённую** попытку миграции SEIR-модели из старого
+Node+Python бэка (`server.app.covid19-modeling-main/`) в новый FastAPI-монолит.
+
+Работа приостановлена, потому что отладка research-grade кода Covasim
+требует больше времени чем рассчитывалось, и фронт (моя зона) важнее запустить
+вперёд. Эта ветка — материал для коллеги, который будет дальше заниматься бэком.
+
+## Что сделано
+
+### Зависимости
+- `covasim==3.1.6` — главный движок SEIR-симуляции
+- `statsmodels>=0.14.5` — для SARIMAX (используется внутри SEIR для прогноза new_tests)
+- `tqdm>=4.66` — прогресс-бар для grid search в best_SARIMAX
+
+### Код
+- `backend/app/modeling/sarimax.py` — перенесены invboxcox, best_SARIMAX, get_predict, future_extr_new_tests
+- `backend/app/modeling/seir_helpers.py` — НОВЫЙ: smooth, smooth_pd, past_extr, run_model, run_msim_extract
+- `backend/app/modeling/seir.py` — главная функция `run_seir(region_slug, population, n_future_days, initial_infected, timeseries_rows, seir_params)` (адаптация `dlya_kati.py`)
+- `backend/app/services/scenario_service.py` — `ScenarioService` + `execute_run_in_background` для FastAPI BackgroundTasks
+- `backend/app/routers/scenarios.py` — POST `/api/v1/scenarios/run` возвращает 202 + run_id, расчёт уходит в фон
+- `backend/app/routers/health.py` — `/health/modeling` smoke-test для всех модельных либ
+- `backend/app/repositories/{timeseries_repo,seir_params_repo}.py` — для извлечения данных из БД
+
+### Что работает
+- `docker compose build api` собирается (covasim + транзитив ~600 MB, ~5-10 мин первый раз)
+- `GET /health/modeling` возвращает версии covasim/numpy/pandas/scipy/sciris — все импортируются
+- `POST /api/v1/scenarios/run` принимает запрос, пишет в БД со статусом `pending`, кикает BackgroundTask
+- Сценарий стартует, появляется лог `execute_run #N: запуск SEIR для novosibirsk`
+
+## Что НЕ работает (текущая блокирующая проблема)
+
+Симуляция падает или висит внутри Covasim после следующего шага в цепочке:
+БД → `_timeseries_rows_to_df` → `past_extr` → `smooth_pd` (`scipy.ndimage.gaussian_filter1d`)
+→ `future_extr_new_tests` (SARIMAX grid search 196 моделей) → `run_model` (covasim.Sim)
+→ `run_msim_extract` (covasim.MultiSim с n_runs=3).
+
+### Поймали и пофиксили:
+1. `dtype('O')` после round-trip данных БД → pandas (NULL значения делают колонку object) — fix: `pd.to_numeric(errors='coerce')` в `_timeseries_rows_to_df`
+2. `scs.boxcox` падал с unpacking error на пустой серии — fix: early-return на `len(series) < 20`
+3. NaN-отравление колонок после `gaussian_filter1d` — fix: `fillna(0)` перед smooth
+4. `statsmodels 0.14.4` + `scipy 1.17` → `_lazywhere` ImportError — fix: `statsmodels>=0.14.5`
+
+### НЕ верифицировано до конца
+Последний прогон не подтверждён — uvicorn перезагружался посреди симуляции, лог обрывался.
+**Что делать тому, кто продолжит:**
+1. `docker compose up -d` и подождать healthy
+2. Открыть второй терминал: `make logs-api`
+3. `make seed-check` — убедиться что в БД есть 75 регионов + timeseries + seir_params
+4. POST на `/api/v1/scenarios/run` с payload `{"region_slug":"novosibirsk","population":2798170,"n_future_days":45,"initial_infected":20}`
+5. Через ~60-120 сек проверить `GET /api/v1/scenarios/<id>` — там либо `result` с series, либо `result.error` с traceback
+
+### Известные потенциальные проблемы которые могут вылезти дальше
+- **Память**: covasim с pop_size=100k × n_runs=3 ест ~500 MB-1 GB на симуляцию. Если контейнер ограничен — OOM-kill
+- **API covasim 3.1.6**: cv.MultiSim, cv.test_num, cv.change_beta — могли поменяться по сравнению с тем, на чём писали оригинальные скрипты (там нет pin'а версии covasim)
+- **Производительность**: best_SARIMAX перебирает 196 моделей — можно сократить диапазон или вообще использовать фиксированные параметры `[1,2,0,1]` (см. функцию `future_extr_new_tests`)
+- **Откладывания калибровки (Optuna)**: пока используем `params_08_04_2022.json` из seed'а; в будущем добавлять Optuna для актуализации параметров
+- **BackgroundTasks vs Celery**: in-process через FastAPI BackgroundTasks; при reload uvicorn задача убивается. Для прода → Celery + Redis
+
+## Откуда переносился код
+
+Все оригинальные скрипты лежат в `CODE/ORIGINAL/server.app.covid19-modeling-main/`:
+- `dlya_kati.py` → `app/modeling/seir.py::run_seir`
+- `functions_total.py` → `app/modeling/seir_helpers.py`
+- `SARIMAX.py` + `func.py` → `app/modeling/sarimax.py`
+- `calibration_total.py` — НЕ перенесён (это калибровка через Optuna, отложено)
+- `convertCOVID19_f.py` — НЕ перенесён (one-shot загрузка pickle, отдельная задача)
+
+## Как запустить и протестировать
+
+```bash
+cd CODE/ai_biolab_docker
+git checkout backend-modeling-wip
+cp .env.example .env
+docker compose up --build       # первый раз ~10-15 минут
+sleep 30
+make seed                       # засеять regions + timeseries + seir_params
+make health                     # /health и /health/db должны вернуть ok
+curl -s http://localhost:8000/health/modeling | python3 -m json.tool
+
+# Запустить расчёт
+curl -X POST http://localhost:8000/api/v1/scenarios/run \
+  -H "Content-Type: application/json" \
+  -d '{"region_slug":"novosibirsk","population":2798170,"n_future_days":45,"initial_infected":20}'
+
+# Опросить статус (id из ответа POST)
+curl http://localhost:8000/api/v1/scenarios/1 | python3 -m json.tool
