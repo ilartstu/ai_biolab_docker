@@ -44,6 +44,57 @@ curl http://localhost:8000/api/v1/regions/novosibirsk | jq
 curl "http://localhost:8000/api/v1/regions/novosibirsk/timeseries?date_from=2020-03-12&date_to=2020-03-20" | jq
 ```
 
+## Перенос фронта (Этап 2 — фронт)
+
+Полностью скопирован код React-фронта из `CODE/ORIGINAL/new-covid-main/` в `frontend/`:
+
+| Что | Объём |
+|---|---|
+| Страницы верхнего уровня (`src/*.js`) | 38 файлов: лендинг (Main), команда (MainTeam), статистика (Covid), туберкулёз (Tub), модельные страницы (Modeling, ModelingSEIR_HCD, The_spread_of_epidemics), описания направлений (Data_processing_and_analysis, Medicine, Pollution_modeling, Social_processes), новости (News), конференции (Conferences), каталог данных (Data), полезные ссылки (Links), + `_En`-дубли каждой страницы |
+| `src/Components/` | 75 файлов: NaviBar, Footer, биографии 9 человек (Krivorotko, Kabanikhin, Mikhailapov, Petrakova, Semenova, Nesterova, Zyatkov, Zvonareva, Neverov), описания моделей AOM/SEIRHCD, статические таблицы Covid/Tub, контакты, публикации |
+| `src/news/` | 66 страниц отдельных новостей и семинаров |
+| `src/conference/` | 12 страниц отдельных конференций (Theory and Numerical Methods, Astana, MathematicsAI и др.) |
+| `src/images/` | 21 MB картинок (логотипы, схемы моделей, иллюстрации) |
+| `public/` | Favicon, manifest, robots.txt, logo-файлы |
+
+### Что работает
+
+- **Все статические страницы рендерятся** при переходе по адресам:
+  - http://localhost:3000/ — лендинг
+  - http://localhost:3000/mainTeam — команда + биографии
+  - http://localhost:3000/news, /conferences, /sem_compl
+  - http://localhost:3000/data — каталог данных
+  - http://localhost:3000/links — полезные ссылки
+  - http://localhost:3000/data_processing_and_analysis, /medicine, /pollution_modeling, /social_processes — описания направлений
+  - 130+ роутов с английскими дублями (`/...../En`)
+- **Сборка**: webpack компилит весь bundle через `npm ci` + react-scripts. CRA 5 c замороженным `package-lock.json` из ORIGINAL.
+
+### Что НЕ работает (пока)
+
+Все интерактивные элементы, которые зависели от старого Node-бэка (`server.ai-biolab.ru`):
+- Страница **Modeling** — форма сценарного SEIR-моделирования, axios-вызовы на `https://server.ai-biolab.ru/data`, `/getUMsim2`, `/getMsim` фейлятся (бэк недоступен по этому URL)
+- Страница **ModelingSEIR_HCD** — SARIMAX-прогнозы, вызовы на `/datesSEIR`, `/api/forecasts*`, `/api/res_valid`, `/api/res_train` фейлятся
+- Страница **The_spread_of_epidemics** — графики распространения, вызовы на `/getMsim`, `/api/csvCovid/nd` фейлятся
+- Страница **Covid (statistics)** — 77 хардкод-URL на `/api/csvCovid/<region>`, не отдают данные
+- Страница **Tub** — 77 URL на `/api/csvTub/<region>` и `/api/csvSocTub/<region>`
+
+Это **ожидаемо** — старый бэк выключен, новый FastAPI на другом хосте (`http://localhost:8000`). В консоли браузера будут видны ошибки `net::ERR_NAME_NOT_RESOLVED` или CORS.
+
+### Что переключить дальше
+
+В `frontend/src/api/client.js` уже есть `axios`-инстанс с `baseURL=process.env.REACT_APP_API_URL`. Следующий шаг — переписать вызовы во всех страницах:
+- `https://server.ai-biolab.ru/api/csvCovid/<region>` → `client.get('/api/v1/regions/<slug>/timeseries')` (один endpoint вместо 77)
+- `https://server.ai-biolab.ru/data` (POST) → `client.post('/api/v1/scenarios/run')` (новый контракт)
+- `https://server.ai-biolab.ru/api/forecasts*` → `client.get('/api/v1/forecasts/...')` (заглушки на бэке)
+
+### Что появится в будущем (новый функционал по ТЗ)
+
+В `App.js` появятся новые роуты для двух обязательных по ТЗ инструментов:
+- **Инструмент детекции вспышек** (`/outbreaks` или встроить в The_spread_of_epidemics): карта/выпадашка регионов РФ + цветовой градиент Rt + сравнение динамики по нескольким регионам. На бэке — `GET /api/v1/outbreaks` (сейчас заглушка)
+- **Инструмент сценарного моделирования с интервенциями**: расширение формы Modeling — добавить поля для локдауна и вакцинации. На бэке — расширение `POST /api/v1/scenarios/run` (новые поля в payload)
+
+Также планируется серверный экспорт PNG/PDF/CSV/ZIP (сейчас экспорт делается на клиенте через `js-file-download`).
+
 ## Залив в GitHub (пустой репозиторий)
 
 Из директории `ai_biolab_docker/`:
@@ -209,7 +260,7 @@ docker compose exec api alembic upgrade head
 
 ## Что уже работает
 
-- **PostgreSQL 16** в контейнере с persistent volume и healthcheck (pg_isready).
+- **PostgreSQL 18** в контейнере с persistent volume и healthcheck (pg_isready).
 - **FastAPI** с трёхслойной архитектурой Router → Service → Repository → DB, и отдельным модулем Modeling без зависимостей от FastAPI (как требует ТЗ).
 - **CORS** настроен на `http://localhost:3000`.
 - **SQLAlchemy 2.x + Pydantic v2** (актуальные стеки).

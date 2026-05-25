@@ -1,0 +1,495 @@
+.App {
+  font-family: sans-serif;
+  text-align: center;
+}
+
+.datacardcol {
+  background: white;
+  color: #198754;
+}
+
+.datacardcol:hover{
+  background-color: #198754;
+  color: white;
+  box-shadow: 0 8px 16px rgba(0,0,0,0.3), 0 20px 24px rgba(0,0,0,0.15);
+
+}
+.shadow1 {
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1), 0 4px 6px rgba(0,0,0,0.1);
+}
+.pubcardcol {
+  background: rgb(248, 248, 248);
+  color: #000000;
+}
+.pubcardcol1 {
+  background: rgb(255, 255, 255);
+  color: #000000;
+}
+
+.shadow4 {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1), 0 16px 20px rgba(0,0,0,0.1);
+}
+.shadow4:hover{
+    box-shadow: 0 8px 16px rgba(0,0,0,0.3), 0 20px 24px rgba(0,0,0,0.3);
+}
+.shadow2 {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1), 0 16px 20px rgba(0,0,0,0.1);
+}
+
+.shadow3:hover {
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2), 0 4px 6px rgba(0,0,0,0.2);
+  color: white;
+}
+.hoverWhite:hover {
+  color: white;
+}
+.fade-enter {
+  opacity: 1;
+  transform: translateX(100%);
+}
+.fade-enter.fade-enter-active {
+  opacity: 1;
+  transform: translateX(0%);
+
+  transition: opacity 250ms ease-out, transform 1000ms ease;
+}
+.fade-exit {
+  opacity: 0;
+  transform: translateX(-100%);
+}
+.fade-exit.fade-exit-active {
+  opacity: 0;
+  transform: translateX(0%);
+
+  transition: opacity 250ms ease-out, transform 1000ms ease;
+}
+
+.nav-pills .nav-link.active {
+    background-color: #39C0ED;
+}
+
+.nav-link {
+color:  #39C0ED;
+}
+
+.support {
+  display: flex;
+  padding: 20px;
+  border: 1px solid white;
+  margin-bottom: 40px;
+  margin-left: 0px;
+  margin-right: 0px;
+}
+
+.mp_info {
+  margin-left: 15px;
+  margin-right: 15px;
+
+}
+
+.active-link {
+    color: white;
+    cursor: grey;
+    text-decoration: none;
+}
+
+.active-dropdown {
+  text-decoration: none;
+  color: grey;
+}
+.active-dropdown:hover {
+  text-decoration: none;
+  color: grey;
+}
+.non-active-dropdown {
+  text-decoration: none;
+  color: black;
+}
+
+.non-active-dropdown:hover {
+  color: grey !important;
+  text-decoration: underline;
+}
+
+.active-link:hover {
+    color: white !important;
+}
+.non-active:hover {
+    color: white !important;
+    text-decoration: underline !important;
+}
+
+.non-active {
+    color: grey;
+    text-decoration: none;
+}
+.fdrop:hover {
+  color: white  !important;
+  text-decoration: underline !important;
+}
+.active-fdrop {
+  color: white;
+}
+.active-fdrop:hover {
+  color: white  !important;
+  text-decoration: underline !important;
+}
+
+.fdrop {
+    color: grey;
+}
+
+.header {
+    position: fixed;
+    width: 100%;
+    height: 70px;
+    top: 0;
+    left: 0;
+    z-index: 1;
+    overflow: hidden;
+    background-color: rgba(0,0,0,.7);
+}
+
+.header2 {
+    margin-bottom: 30px;
+    position: fixed;
+    width: 100%;
+    height: 70px;
+    top: 0;
+    left: 0;
+    bottom: 3;
+    z-index: 1;
+    overflow: hidden;
+    background-color: rgba(0,0,0,1);
+}
+
+.header .navbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: 100%;
+    margin: auto;
+    height: 100%;
+    padding: 0 1rem;
+
+}
+
+.header .nav-menu a {
+    color: #ffffff;
+}
+
+.header .navbar img {
+    width: 250px;
+    height: auto;
+  
+}
+
+.header .nav-menu {
+    display: flex;
+}
+
+.header .nav-item {
+    padding: 1rem;
+    font-weight: 500;
+}
+
+.header .nav-item a:hover {
+    padding-bottom: 12px;
+    border-bottom: 3px solid var(--secondary-color);
+}
+
+.header__lang {
+  margin-left: 125px;
+  font-size: 20px;
+}
+
+.header__lang-link.active {
+  color: #6ee3e7;
+  margin-right: 10px;
+  margin-left: 10px;
+}
+
+.header__lang-link {
+  color: #fff;
+  margin-left: 10px;
+  margin-right: 10px;
+}
+
+.hamburger {
+    display: none;
+}
+
+.cards_t {
+  margin: 0;
+  padding: 0;
+  list-style-type: none;
+  display: flex;
+  align-items: stretch;
+  
+}
+
+.cards_item_t {
+  flex: 1 1 calc(33.333% - 20px); /* Позволяет карточкам занимать равное пространство */
+  max-width: 419px; /* Минимальная ширина для карточек */
+}
+.cards_item_t:not(:last-child) {
+  margin-right: 20px;
+}
+.card_t {
+  display: flex;
+  flex-direction: column; /* Позволяет карточке занимать всю высоту */
+  height: 100%; /* Задает высоту карточки */
+  background-color: #ffffff;
+  transition: transform 0.3s ease, box-shadow 0.3s ease; /* Плавный переход для трансформации и тени */
+}
+.card_t:hover {
+  transform: translateY(-5px); /* Выдвижение карточки */
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); /* Тень при наведении */
+}
+.card_conf {
+  display: flex;
+  flex-direction: row;
+  width: 638px;
+  background-color: #ffffff;
+}
+.card_image_t {
+  height: 200px;
+}
+.card_image_conf {
+  width: 500px;
+}
+.card_image_t img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.card_content_t {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 20px;
+  flex-grow: 1;
+  
+}
+.card_title_t {
+  margin: 0;
+  margin-bottom: 15px;
+}
+.card_descr_t {
+  margin: 0;
+  margin-bottom: 15px;
+}
+.card_btn_t {
+  border: none;
+  padding: 10px 20px;
+  color:#000000;
+  background-color: #ffffff;
+  cursor: pointer;
+  margin-top: auto;
+}
+.card_btn_th {
+  border: none;
+  padding: 10px 20px;
+  color:#ffffff;
+  background-color: #39C0ED;
+  cursor: pointer;
+  margin-top: auto;
+  border-radius: 10px
+  
+}
+.cards_item_t .card_t {
+  height: 100%;
+
+}
+
+.cards_item_t .card_conf {
+  height: 100%;
+}
+
+.cards_container {
+  display: flex;
+  flex-wrap: wrap; /* Позволяет элементам переноситься на следующую строку */
+  gap: 20px; /* Отступ между карточками */
+}
+
+.cards_item_conf {
+  flex: 0 0 48%; /* Каждая карточка занимает почти половину ширины контейнера */
+  margin-bottom: 20px; /* Отступ между строками */
+  margin:5px;
+  transition: transform 0.3s ease, box-shadow 0.3s ease; /* Плавный переход для трансформации и тени */
+  
+}
+.cards_item_conf:hover {
+  transform: translateY(-5px); /* Выдвижение карточки */
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); /* Тень при наведении */
+}
+
+.card_conf {
+  display: flex;
+  flex-direction: row; /* Вертикальное расположение содержимого карточки */
+  height: 100%; /* Задает одинаковую высоту для всех карточек */
+}
+
+.card_image_conf img {
+  width: 240px; /* Заставляет изображение занимать всю ширину карточки */
+  height: 140px; /* Сохраняет пропорции изображения */
+}
+
+.additional_info {
+  position: absolute;
+  background-color: rgba(255, 255, 255); 
+  color: black; /* Цвет текста */
+  padding: 10px;
+  border-radius: 5px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  z-index: 1;
+  top: 0; /* Позиционирование поверх карточки */
+  left: 0;
+  right: 0;
+  transform: translateY(-100%); /* Начальное положение (вне видимости) */
+  transition: transform 0.3s ease-in-out; /* Анимация */
+}
+
+.cards_item_conf:hover .additional_info {
+  transform: translateY(0); /* Показать дополнительную информацию при наведении */
+}
+
+.m-team-item {
+  border-radius: 8px; /* Скругление углов */
+  justify-content: center;
+  transition: transform 0.3s ease, box-shadow 0.1s ease; /* Плавный переход для трансформации и тени */
+}
+
+.m-team-item:hover {
+  transform: translateY(-10px); /* Выдвижение карточки вверх на 10 пикселей */
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.8); /* Тень при наведении */
+}
+
+
+.form {
+  display: flex;
+  align-items: center;
+  border-radius: 5px;
+  overflow: hidden;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  background: white;
+}
+
+input[type="search"] {
+  border: none;
+  padding: 10px 15px;
+  font-size: 16px;
+  border-radius: 10px 0 0 10px;
+  flex: 1;
+  outline: none;
+}
+
+input[type="submit"] {
+  background-color: #39C0ED;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  font-size: 16px;
+  border-radius: 0 5px 5px 0;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+input[type="submit"]:hover {
+  background-color: #0056b3;
+}
+
+
+
+.region-button {
+  display: inline-block; /* Убедитесь, что кнопки располагаются в одной строке */
+  margin-right: 10px; /* Добавьте отступ между кнопками */
+  max-width: none; /* Убедитесь, что нет ограничений по ширине */
+}
+
+.all-region {
+  display: flex;
+  align-items: center;
+  border-radius: 5px;
+  overflow: hidden;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  background: #39C0ED;
+}
+
+.card_links {
+  transition: transform 0.2s;
+}
+
+.card_links:hover {
+  transform: scale(1.05);
+}
+
+.header_links {
+  border: 2px solid #007bff; /* Цвет рамки */
+  padding: 10px; /* Отступы внутри рамки */
+  border-radius: 5px; /* Закругление углов */
+  width: 100%; /* Занимает всю ширину родительского элемента */
+  text-align: center; /* Центрирование текста */
+}
+
+
+.center {
+  text-align: center;
+}
+
+
+@media screen and (max-width:940px) {
+    .header {
+        max-width: 100%;
+        background-color: rgba(0,0,0,.9);
+    }
+
+    .header .navbar {
+        max-width: 100%;
+    }
+
+    .hamburger {
+        display: block;
+    }
+
+    .nav-menu {
+        position: fixed;
+        left: -100%;
+        top: 90px;
+        flex-direction: column;
+        background-color: rgba(0,0,0,.9);
+        width: 100%;
+        height: 90vh;
+        z-index: 999;
+        text-align: center;
+        transition: .3s;
+    }
+
+    .nav-menu.active {
+        left: 0;
+    }
+
+    .nav-item {
+        margin: 1.5rem 0;
+    }
+
+    .header .navbar img {
+        width: 150px;
+          }
+    .navbar-light .navbar-toggler-icon {
+    background-image: url(data:image/svg+xml,%3csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 30 30%27%3e%3cpath stroke=%27rgba%28255, 255, 255, 1%29%27 stroke-linecap=%27round%27 stroke-miterlimit=%2710%27 stroke-width=%272%27 d=%27M4 7h22M4 15h22M4 23h22%27/%3e%3c/svg%3e);
+    }
+    .card-item {
+    flex: 1 1 100%; /* Одна колонка на маленьких экранах */
+  }
+
+  .cards_item_t {
+    flex: 1 1 100%; /* Одна колонка */
+  }
+
+.card_conf {
+  background-color: #ffffff; /* Пример фона для карточки */
+  color: rgb(0, 0, 0); /* Цвет текста */
+}
+  }

@@ -1,0 +1,14 @@
+.Box {
+	background: white;
+	border: 1px solid #F3F3F3;
+	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+	padding: 1em;
+	position: relative;
+}
+
+
+
+/*@import url('https://fonts.googleapis.com/css?family=Nunito+Sans');
+body {
+  font-family: 'Nunito Sans';
+}*/
