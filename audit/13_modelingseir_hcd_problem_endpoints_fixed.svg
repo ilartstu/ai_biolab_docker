@@ -1,0 +1,163 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2500" height="2300" viewBox="0 0 2500 2300">
+<defs>
+            <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+                <path d="M0,0 L0,6 L9,3 z" fill="#27364a" />
+            </marker>
+            <marker id="arrowBlue" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+                <path d="M0,0 L0,6 L9,3 z" fill="#155fc0" />
+            </marker>
+            <marker id="arrowGreen" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+                <path d="M0,0 L0,6 L9,3 z" fill="#15803d" />
+            </marker>
+            <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+              <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000000" flood-opacity="0.12"/>
+            </filter>
+        </defs>
+<rect x="0" y="0" width="2500" height="2300" fill="#fbfcff"/>
+<text x="40" y="58" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="700" fill="#111827" text-anchor="start">03. ModelingSEIR_HCD: точные UI-действия, endpoint-ы и проверка сервера</text>
+<rect x="60" y="110" width="560" height="90" rx="16" fill="#ffffff" stroke="#1d4ed8" stroke-width="2" filter="url(#shadow)"/>
+<text x="78" y="140" font-family="Arial, Helvetica, sans-serif" font-size="19" font-weight="700" fill="#1d4ed8" text-anchor="start">Вход</text>
+<text x="78" y="172" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="400" fill="#111827" text-anchor="start">Пользователь уже находится на /modeling →</text>
+<text x="78" y="195" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="400" fill="#111827" text-anchor="start">открывается блок ModelingSEIR_HCD.js</text>
+<rect x="680" y="110" width="840" height="90" rx="16" fill="#ffffff" stroke="#1d4ed8" stroke-width="2" filter="url(#shadow)"/>
+<text x="698" y="140" font-family="Arial, Helvetica, sans-serif" font-size="19" font-weight="700" fill="#1d4ed8" text-anchor="start">Файл фронта</text>
+<text x="698" y="172" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="400" fill="#111827" text-anchor="start">new-covid/src/ModelingSEIR_HCD.js</text>
+<text x="698" y="195" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="400" fill="#111827" text-anchor="start">EN-аналог: ModelingSEIR_HCD_En.js</text>
+<line x1="620" y1="155" x2="680" y2="155" stroke="#1d4ed8" stroke-width="2" marker-end="url(#arrowBlue)"/>
+<rect x="60" y="250" width="550" height="60" rx="16" fill="#ffffff" stroke="#1d4ed8" stroke-width="2" filter="url(#shadow)"/>
+<rect x="60" y="250" width="550" height="42" rx="16" fill="#1d4ed8"/>
+<rect x="60" y="276" width="550" height="16" fill="#1d4ed8"/>
+<text x="335.0" y="278" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700" fill="#ffffff" text-anchor="middle">Действие пользователя</text>
+<rect x="630" y="250" width="760" height="60" rx="16" fill="#ffffff" stroke="#7c3aed" stroke-width="2" filter="url(#shadow)"/>
+<rect x="630" y="250" width="760" height="42" rx="16" fill="#7c3aed"/>
+<rect x="630" y="276" width="760" height="16" fill="#7c3aed"/>
+<text x="1010.0" y="278" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700" fill="#ffffff" text-anchor="middle">Handler во фронте</text>
+<rect x="1410" y="250" width="640" height="60" rx="16" fill="#ffffff" stroke="#15803d" stroke-width="2" filter="url(#shadow)"/>
+<rect x="1410" y="250" width="640" height="42" rx="16" fill="#15803d"/>
+<rect x="1410" y="276" width="640" height="16" fill="#15803d"/>
+<text x="1730.0" y="278" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700" fill="#ffffff" text-anchor="middle">Что вызывает / что получает</text>
+<rect x="60" y="340" width="550" height="120" rx="16" fill="#ffffff" stroke="#16a34a" stroke-width="2" filter="url(#shadow)"/>
+<text x="78" y="368" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="400" fill="#111827" text-anchor="start">1. «Базовый сценарий»</text>
+<rect x="630" y="340" width="760" height="120" rx="16" fill="#ffffff" stroke="#16a34a" stroke-width="2" filter="url(#shadow)"/>
+<text x="648" y="368" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="400" fill="#111827" text-anchor="start">setOpenBS(!openBS)</text>
+<rect x="1410" y="340" width="640" height="120" rx="16" fill="#ffffff" stroke="#16a34a" stroke-width="2" filter="url(#shadow)"/>
+<text x="1428" y="368" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="400" fill="#111827" text-anchor="start">LOCAL ONLY: toggle состояния, запросов к серверу нет</text>
+<line x1="610" y1="400.0" x2="630" y2="400.0" stroke="#16a34a" stroke-width="2" marker-end="url(#arrow)"/>
+<line x1="1390" y1="400.0" x2="1410" y2="400.0" stroke="#16a34a" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="60" y="485" width="550" height="120" rx="16" fill="#ffffff" stroke="#2563eb" stroke-width="2" filter="url(#shadow)"/>
+<text x="78" y="513" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="400" fill="#111827" text-anchor="start">2. Выбор «Дата прогноза»</text>
+<rect x="630" y="485" width="760" height="120" rx="16" fill="#ffffff" stroke="#2563eb" stroke-width="2" filter="url(#shadow)"/>
+<text x="648" y="513" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="400" fill="#111827" text-anchor="start">setPrognose_data(selected)</text>
+<text x="648" y="536" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="400" fill="#111827" text-anchor="start">→ forecasts_new(prognose_type, selected)</text>
+<text x="648" y="559" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="400" fill="#111827" text-anchor="start">→ forecasts_R0(selected)</text>
+<rect x="1410" y="485" width="640" height="120" rx="16" fill="#ffffff" stroke="#2563eb" stroke-width="2" filter="url(#shadow)"/>
+<text x="1428" y="513" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="400" fill="#111827" text-anchor="start">Запускает цепочки forecasts_new и forecasts_R0</text>
+<line x1="610" y1="545.0" x2="630" y2="545.0" stroke="#2563eb" stroke-width="2" marker-end="url(#arrow)"/>
+<line x1="1390" y1="545.0" x2="1410" y2="545.0" stroke="#2563eb" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="60" y="630" width="550" height="120" rx="16" fill="#ffffff" stroke="#2563eb" stroke-width="2" filter="url(#shadow)"/>
+<text x="78" y="658" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="400" fill="#111827" text-anchor="start">3. Выбор «Тип прогноза»</text>
+<rect x="630" y="630" width="760" height="120" rx="16" fill="#ffffff" stroke="#2563eb" stroke-width="2" filter="url(#shadow)"/>
+<text x="648" y="658" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="400" fill="#111827" text-anchor="start">setPrognose_type(stype, prognose_data)</text>
+<text x="648" y="681" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="400" fill="#111827" text-anchor="start">options: новые случаи / C / D</text>
+<text x="648" y="704" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="400" fill="#111827" text-anchor="start">→ forecasts_new(stype, prognose_data)</text>
+<rect x="1410" y="630" width="640" height="120" rx="16" fill="#ffffff" stroke="#2563eb" stroke-width="2" filter="url(#shadow)"/>
+<text x="1428" y="658" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="400" fill="#111827" text-anchor="start">Перерисовывает прогноз по выбранному типу</text>
+<line x1="610" y1="690.0" x2="630" y2="690.0" stroke="#2563eb" stroke-width="2" marker-end="url(#arrow)"/>
+<line x1="1390" y1="690.0" x2="1410" y2="690.0" stroke="#2563eb" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="60" y="775" width="550" height="170" rx="16" fill="#ffffff" stroke="#dc2626" stroke-width="2" filter="url(#shadow)"/>
+<text x="78" y="803" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="400" fill="#111827" text-anchor="start">4. forecasts_new(...)</text>
+<rect x="630" y="775" width="760" height="170" rx="16" fill="#ffffff" stroke="#dc2626" stroke-width="2" filter="url(#shadow)"/>
+<text x="648" y="803" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="400" fill="#111827" text-anchor="start">POST /api/forecasts_true/</text>
+<text x="648" y="826" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="400" fill="#111827" text-anchor="start">→ true: new_diagnoses / ventilation / cum_deaths</text>
+<text x="648" y="849" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="400" fill="#111827" text-anchor="start">POST /api/forecasts/</text>
+<text x="648" y="872" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="400" fill="#111827" text-anchor="start">→ forecast: mean / max / min</text>
+<rect x="1410" y="775" width="640" height="170" rx="16" fill="#ffffff" stroke="#dc2626" stroke-width="2" filter="url(#shadow)"/>
+<text x="1428" y="803" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="400" fill="#111827" text-anchor="start">Во фронте вызывается. В public index.js route не найдена.</text>
+<line x1="610" y1="860.0" x2="630" y2="860.0" stroke="#dc2626" stroke-width="2" marker-end="url(#arrow)"/>
+<line x1="1390" y1="860.0" x2="1410" y2="860.0" stroke="#dc2626" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="60" y="970" width="550" height="170" rx="16" fill="#ffffff" stroke="#dc2626" stroke-width="2" filter="url(#shadow)"/>
+<text x="78" y="998" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="400" fill="#111827" text-anchor="start">5. forecasts_R0(selected)</text>
+<rect x="630" y="970" width="760" height="170" rx="16" fill="#ffffff" stroke="#dc2626" stroke-width="2" filter="url(#shadow)"/>
+<text x="648" y="998" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="400" fill="#111827" text-anchor="start">POST /api/forecasts_train/</text>
+<text x="648" y="1021" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="400" fill="#111827" text-anchor="start">→ train R0_mean / R0_min / R0_max</text>
+<text x="648" y="1044" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="400" fill="#111827" text-anchor="start">POST /api/forecasts/</text>
+<text x="648" y="1067" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="400" fill="#111827" text-anchor="start">→ forecast R0_mean / R0_min / R0_max</text>
+<text x="648" y="1090" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="400" fill="#111827" text-anchor="start">→ build chartData_bsR0</text>
+<rect x="1410" y="970" width="640" height="170" rx="16" fill="#ffffff" stroke="#dc2626" stroke-width="2" filter="url(#shadow)"/>
+<text x="1428" y="998" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="400" fill="#111827" text-anchor="start">Во фронте вызывается. В public index.js route не найдена.</text>
+<line x1="610" y1="1055.0" x2="630" y2="1055.0" stroke="#dc2626" stroke-width="2" marker-end="url(#arrow)"/>
+<line x1="1390" y1="1055.0" x2="1410" y2="1055.0" stroke="#dc2626" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="60" y="1165" width="550" height="190" rx="16" fill="#ffffff" stroke="#ea580c" stroke-width="2" filter="url(#shadow)"/>
+<text x="78" y="1193" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="400" fill="#111827" text-anchor="start">6. Кнопки Train</text>
+<rect x="630" y="1165" width="760" height="190" rx="16" fill="#ffffff" stroke="#ea580c" stroke-width="2" filter="url(#shadow)"/>
+<text x="648" y="1193" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="400" fill="#111827" text-anchor="start">H → res_train(H_mean,H_max,H_min,hospitalised)</text>
+<text x="648" y="1216" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="400" fill="#111827" text-anchor="start">C → res_train(C_mean,C_max,C_min,n_critical)</text>
+<text x="648" y="1239" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="400" fill="#111827" text-anchor="start">D → res_train(D_mean,D_max,D_min,cum_deaths)</text>
+<text x="648" y="1262" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="400" fill="#111827" text-anchor="start">и аналогичный паттерн для других групп</text>
+<rect x="1410" y="1165" width="640" height="190" rx="16" fill="#ffffff" stroke="#ea580c" stroke-width="2" filter="url(#shadow)"/>
+<text x="1428" y="1193" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="400" fill="#111827" text-anchor="start">GET /api/res_train/ → Date, R0_mean, R0_max, R0_min,</text>
+<text x="1428" y="1216" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="400" fill="#111827" text-anchor="start">alpha_e_mean, alpha_i_mean, eps_hc_mean, mu_mean. Route не</text>
+<text x="1428" y="1239" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="400" fill="#111827" text-anchor="start">найдена.</text>
+<line x1="610" y1="1260.0" x2="630" y2="1260.0" stroke="#ea580c" stroke-width="2" marker-end="url(#arrow)"/>
+<line x1="1390" y1="1260.0" x2="1410" y2="1260.0" stroke="#ea580c" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="60" y="1380" width="550" height="190" rx="16" fill="#ffffff" stroke="#ea580c" stroke-width="2" filter="url(#shadow)"/>
+<text x="78" y="1408" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="400" fill="#111827" text-anchor="start">7. Кнопки Validation</text>
+<rect x="630" y="1380" width="760" height="190" rx="16" fill="#ffffff" stroke="#ea580c" stroke-width="2" filter="url(#shadow)"/>
+<text x="648" y="1408" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="400" fill="#111827" text-anchor="start">fk → res_valid(fk_mean,fk_max,fk_min,new_diagnoses)</text>
+<text x="648" y="1431" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="400" fill="#111827" text-anchor="start">S/E/I/R/H/C/D → res_valid(...) с соответствующими series</text>
+<text x="648" y="1454" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="400" fill="#111827" text-anchor="start">R → cum_recoveries; H → hospitalised; C → n_critical; D → cum_deaths</text>
+<rect x="1410" y="1380" width="640" height="190" rx="16" fill="#ffffff" stroke="#ea580c" stroke-width="2" filter="url(#shadow)"/>
+<text x="1428" y="1408" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="400" fill="#111827" text-anchor="start">GET /api/res_valid → Date, R0_mean, R0_max, R0_min, series</text>
+<text x="1428" y="1431" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="400" fill="#111827" text-anchor="start">S,E,I,R,H,C,D. Route не найдена.</text>
+<line x1="610" y1="1475.0" x2="630" y2="1475.0" stroke="#ea580c" stroke-width="2" marker-end="url(#arrow)"/>
+<line x1="1390" y1="1475.0" x2="1410" y2="1475.0" stroke="#ea580c" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="60" y="1595" width="550" height="120" rx="16" fill="#ffffff" stroke="#16a34a" stroke-width="2" filter="url(#shadow)"/>
+<text x="78" y="1623" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="400" fill="#111827" text-anchor="start">8. Первичная загрузка дат</text>
+<rect x="630" y="1595" width="760" height="120" rx="16" fill="#ffffff" stroke="#16a34a" stroke-width="2" filter="url(#shadow)"/>
+<text x="648" y="1623" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="400" fill="#111827" text-anchor="start">datesOption()</text>
+<rect x="1410" y="1595" width="640" height="120" rx="16" fill="#ffffff" stroke="#16a34a" stroke-width="2" filter="url(#shadow)"/>
+<text x="1428" y="1623" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="400" fill="#111827" text-anchor="start">GET /datesSEIR → index.js → spawn python3.10</text>
+<text x="1428" y="1646" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="400" fill="#111827" text-anchor="start">./convertCOVID19_f.py → read ./parsingCOVID_files/dates.json →</text>
+<text x="1428" y="1669" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="400" fill="#111827" text-anchor="start">setdates2(dates). Подтверждено.</text>
+<line x1="610" y1="1655.0" x2="630" y2="1655.0" stroke="#16a34a" stroke-width="2" marker-end="url(#arrow)"/>
+<line x1="1390" y1="1655.0" x2="1410" y2="1655.0" stroke="#16a34a" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="2090" y="250" width="360" height="980" rx="16" fill="#ffffff" stroke="#111827" stroke-width="2" filter="url(#shadow)"/>
+<text x="2108" y="280" font-family="Arial, Helvetica, sans-serif" font-size="19" font-weight="700" fill="#111827" text-anchor="start">Проверка public index.js</text>
+<rect x="2120" y="330" width="300" height="130" rx="16" fill="#f0fdf4" stroke="#16a34a" stroke-width="2" filter="url(#shadow)"/>
+<text x="2138" y="360" font-family="Arial, Helvetica, sans-serif" font-size="19" font-weight="700" fill="#16a34a" text-anchor="start">✓ Найдено</text>
+<text x="2138" y="392" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="400" fill="#111827" text-anchor="start">GET /datesSEIR</text>
+<rect x="2120" y="500" width="300" height="520" rx="16" fill="#fff1f2" stroke="#dc2626" stroke-width="2" filter="url(#shadow)"/>
+<text x="2138" y="530" font-family="Arial, Helvetica, sans-serif" font-size="19" font-weight="700" fill="#dc2626" text-anchor="start">✕ Не найдено</text>
+<text x="2138" y="562" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="400" fill="#111827" text-anchor="start">/api/forecasts</text>
+<text x="2138" y="587" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="400" fill="#111827" text-anchor="start">/api/forecasts/</text>
+<text x="2138" y="612" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="400" fill="#111827" text-anchor="start">/api/forecasts_train/</text>
+<text x="2138" y="637" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="400" fill="#111827" text-anchor="start">/api/forecasts_true/</text>
+<text x="2138" y="662" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="400" fill="#111827" text-anchor="start">/api/res_train</text>
+<text x="2138" y="687" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="400" fill="#111827" text-anchor="start">/api/res_train/</text>
+<text x="2138" y="712" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="400" fill="#111827" text-anchor="start">/api/res_valid</text>
+<text x="2138" y="737" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="400" fill="#111827" text-anchor="start">/api/res_valid/</text>
+<text x="2138" y="762" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="400" fill="#111827" text-anchor="start">/api/csvCovid/nd</text>
+<text x="2138" y="787" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="400" fill="#111827" text-anchor="start">/api/csvCovid/nd/</text>
+<rect x="2120" y="1060" width="300" height="130" rx="16" fill="#f8fafc" stroke="#64748b" stroke-width="2" filter="url(#shadow)"/>
+<text x="2138" y="1090" font-family="Arial, Helvetica, sans-serif" font-size="19" font-weight="700" fill="#64748b" text-anchor="start">Примечание</text>
+<text x="2138" y="1122" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="400" fill="#111827" text-anchor="start">Проверка относится к текущему</text>
+<text x="2138" y="1143" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="400" fill="#111827" text-anchor="start">публичному index.js. Если routes</text>
+<text x="2138" y="1164" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="400" fill="#111827" text-anchor="start">лежат в другом файле/версии,</text>
+<text x="2138" y="1185" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="400" fill="#111827" text-anchor="start">этот список неполный.</text>
+<rect x="60" y="1900" width="940" height="200" rx="16" fill="#f8fafc" stroke="#475569" stroke-width="2" filter="url(#shadow)"/>
+<text x="78" y="1930" font-family="Arial, Helvetica, sans-serif" font-size="19" font-weight="700" fill="#475569" text-anchor="start">Локальные массивы ModelingSEIR_HCD</text>
+<text x="78" y="1962" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="400" fill="#111827" text-anchor="start">Основные локальные массивы:</text>
+<text x="78" y="1987" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="400" fill="#111827" text-anchor="start">dates, mean, max, min, tr, r0_mean, r0_max, r0_min, dataSEIRHCD, ae_data, ai_data, e_data,</text>
+<text x="78" y="2012" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="400" fill="#111827" text-anchor="start">m_data, ...</text>
+<text x="78" y="2037" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="400" fill="#111827" text-anchor="start">Всего около 38 локальных массивов: используются для графиков, кэширования и промежуточных</text>
+<text x="78" y="2062" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="400" fill="#111827" text-anchor="start">расчётов.</text>
+<rect x="1040" y="1900" width="1360" height="200" rx="16" fill="#fff1f2" stroke="#dc2626" stroke-width="2" filter="url(#shadow)"/>
+<text x="1058" y="1930" font-family="Arial, Helvetica, sans-serif" font-size="19" font-weight="700" fill="#dc2626" text-anchor="start">⚠ Итог по интеграции</text>
+<text x="1058" y="1962" font-family="Arial, Helvetica, sans-serif" font-size="19" font-weight="400" fill="#111827" text-anchor="start">Вывод: ModelingSEIR_HCD частично завязан на backend-ручки, которых нет в текущем публичном</text>
+<text x="1058" y="1988" font-family="Arial, Helvetica, sans-serif" font-size="19" font-weight="400" fill="#111827" text-anchor="start">server.app.covid19-modeling/index.js. Подтверждён только GET /datesSEIR. Возможные причины: серверный репозиторий</text>
+<text x="1058" y="2014" font-family="Arial, Helvetica, sans-serif" font-size="19" font-weight="400" fill="#111827" text-anchor="start">неполный, устаревший, либо часть API была на другой версии/боевом сервере.</text>
+<rect x="60" y="2140" width="2340" height="100" rx="16" fill="#ffffff" stroke="#64748b" stroke-width="2" filter="url(#shadow)"/>
+<text x="78" y="2170" font-family="Arial, Helvetica, sans-serif" font-size="19" font-weight="700" fill="#64748b" text-anchor="start">Легенда</text>
+<text x="78" y="2202" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="400" fill="#111827" text-anchor="start">Зелёный — подтверждённый маршрут / локально без проблемы. Красный — frontend вызывает, но route не найдена в public index.js. Оранжевый — UI-кнопки</text>
+<text x="78" y="2227" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="400" fill="#111827" text-anchor="start">train/validation, которые ведут к отсутствующим endpoint-ам. Синий/фиолетовый — frontend handler и цепочка вызова.</text>
+</svg>
