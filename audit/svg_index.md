@@ -32,11 +32,11 @@
 
 ![05_data_and_modeling_flow](./05_data_and_modeling_flow.svg)
 
-## 06. Карта endpoint-ов
+## 06. Моделирование и распространение эпидемий
 
-[Открыть SVG](./06_endpoint_map.svg)
-
-![06_endpoint_map](./06_endpoint_map.svg)
+![11_overview_call_map_fixed](./11_overview_call_map_fixed.svg)
+![12_spread_modeling_detailed_flow_fixed](./12_spread_modeling_detailed_flow_fixed.svg)
+![13_modelingseir_hcd_problem_endpoints_fixed](./13_modelingseir_hcd_problem_endpoints_fixed.svg)
 
 ## 07. Типы страниц → таблицы БД
 
