@@ -1,0 +1,50 @@
+### Health
+GET http://localhost:8000/api/health
+Accept: application/json
+
+### Agent config
+GET http://localhost:8000/api/models/agent/config
+Accept: application/json
+
+### Agent run
+POST http://localhost:8000/api/models/agent/runs
+Content-Type: application/json
+Accept: application/json
+Idempotency-Key: agent-demo-1
+
+{
+  "client_request_id": "front-agent-1",
+  "region_id": "novosibirsk_oblast",
+  "sim_params": {
+    "pop_size": 100000,
+    "pop_infected": 10,
+    "forecast_days": 45,
+    "beta": 0.02
+  },
+  "interventions": [
+    {"date": "2020-03-20", "beta_change": 0.7}
+  ]
+}
+
+### ML config
+GET http://localhost:8000/api/models/ml-forecast/config
+Accept: application/json
+
+### ML run
+POST http://localhost:8000/api/models/ml-forecast/runs
+Content-Type: application/json
+Accept: application/json
+Idempotency-Key: ml-demo-1
+
+{
+  "client_request_id": "front-ml-1",
+  "region_id": "spb",
+  "context_date": "2024-03-06",
+  "model_ids": ["seir_hcd", "lstm", "cgan"],
+  "indicator_id": "new_diagnoses",
+  "mode": "compare_models"
+}
+
+### MFG result
+GET http://localhost:8000/api/models/mfg/scenario-results?region_id=novosibirsk_oblast&period_id=period1&strategy_id=base
+Accept: application/json

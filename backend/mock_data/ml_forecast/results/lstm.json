@@ -1,0 +1,50 @@
+{
+  "model_id": "lstm",
+  "forecast": [
+    {
+      "horizon": 1,
+      "date_offset": 1,
+      "mean": 560,
+      "std": 16,
+      "low_3sigma": 512,
+      "high_3sigma": 608,
+      "actual": 537.6
+    },
+    {
+      "horizon": 2,
+      "date_offset": 2,
+      "mean": 585,
+      "std": 18,
+      "low_3sigma": 531,
+      "high_3sigma": 639,
+      "actual": 561.6
+    },
+    {
+      "horizon": 3,
+      "date_offset": 3,
+      "mean": 610,
+      "std": 20,
+      "low_3sigma": 550,
+      "high_3sigma": 670,
+      "actual": 585.6
+    },
+    {
+      "horizon": 4,
+      "date_offset": 4,
+      "mean": 635,
+      "std": 22,
+      "low_3sigma": 569,
+      "high_3sigma": 701,
+      "actual": 609.6
+    },
+    {
+      "horizon": 5,
+      "date_offset": 5,
+      "mean": 660,
+      "std": 24,
+      "low_3sigma": 588,
+      "high_3sigma": 732,
+      "actual": 633.6
+    }
+  ]
+}

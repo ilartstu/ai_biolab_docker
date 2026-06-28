@@ -1,0 +1,50 @@
+{
+  "model_id": "cgan",
+  "forecast": [
+    {
+      "horizon": 1,
+      "date_offset": 1,
+      "mean": 595,
+      "std": 20,
+      "low_3sigma": 535,
+      "high_3sigma": 655,
+      "actual": 571.2
+    },
+    {
+      "horizon": 2,
+      "date_offset": 2,
+      "mean": 620,
+      "std": 22,
+      "low_3sigma": 554,
+      "high_3sigma": 686,
+      "actual": 595.2
+    },
+    {
+      "horizon": 3,
+      "date_offset": 3,
+      "mean": 645,
+      "std": 24,
+      "low_3sigma": 573,
+      "high_3sigma": 717,
+      "actual": 619.2
+    },
+    {
+      "horizon": 4,
+      "date_offset": 4,
+      "mean": 670,
+      "std": 26,
+      "low_3sigma": 592,
+      "high_3sigma": 748,
+      "actual": 643.2
+    },
+    {
+      "horizon": 5,
+      "date_offset": 5,
+      "mean": 695,
+      "std": 28,
+      "low_3sigma": 611,
+      "high_3sigma": 779,
+      "actual": 667.2
+    }
+  ]
+}

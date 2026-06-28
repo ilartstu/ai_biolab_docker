@@ -1,325 +1,360 @@
-# ai_biolab_docker — Docker-compose v0
+# ai-biolab.ru — новая архитектура
 
-База новой архитектуры сайта **ai-biolab.ru** (FastAPI-монолит Router-Service-Repository + PostgreSQL + React-фронт). Соответствует ПРИЛОЖЕНИЮ 2 ТЗ.
+Веб-приложение Сириуса для эпидемиологического моделирования. Полная переписка старого монолита Node+Python+CSV на современный стек FastAPI + PostgreSQL + React с асинхронным orchestration-бэком и трёхслойной архитектурой (Router-Service-Repository).
 
-## Быстрый старт через Makefile
+> **Документация на проект**
+> Этот файл — единая точка входа. Прочитав его, можно легко продолжить разработку.
 
-```bash
-make help              # список всех команд
-make up                # поднять весь стек в фоне
-make health            # проверить /health и /health/db
-make logs-api          # логи бэка
-make psql              # зайти в БД
-make front-reset       # пересобрать фронт (после правок package.json)
-make down              # остановить (БД сохраняется)
-make clean             # полный сброс (СНЕСЁТ БД!)
+---
 
-# Этап 1 — данные
-make seed              # засеять regions + timeseries + seir_params
-make seed-check        # проверить что засеялось
-```
+## 1. История проекта (краткая)
 
-## Сидеры данных (Этап 1)
-
-После первого `make up` (или после `make clean && make up`) база пустая.
-Команда `make seed` наполняет её данными из старого проекта:
-
-| Что | Источник | Куда | Объём |
-|---|---|---|---|
-| 75 регионов РФ | `regions_data.py` (распарсено из `ORIGINAL/new-covid-main/src/Covid.js`) | таблица `regions` | 75 строк |
-| Временные ряды | `data/regions/{Novosibirsk,Omsk,Altai}.csv` (из `ORIGINAL/server.app.covid19-modeling-main/`) | таблица `timeseries` | ~2200 строк |
-| Параметры SEIR | `data/seir/params_08_04_2022.json` | таблица `seir_params` | 1 запись (label=`08_04_2022`, region=`novosibirsk`) |
-
-Сидеры **идемпотентны** (ON CONFLICT DO NOTHING) — можно запускать многократно. Проверка:
-
-```bash
-make seed-check
-# regions count → 75
-# timeseries by region → novosibirsk/omsk/altay с диапазонами дат
-# seir_params → одна запись с label='08_04_2022'
-
-# или через API
-curl http://localhost:8000/api/v1/regions | jq 'length'         # → 75
-curl http://localhost:8000/api/v1/regions/novosibirsk | jq
-curl "http://localhost:8000/api/v1/regions/novosibirsk/timeseries?date_from=2020-03-12&date_to=2020-03-20" | jq
-```
-
-## Перенос фронта (Этап 2 — фронт)
-
-Полностью скопирован код React-фронта из `CODE/ORIGINAL/new-covid-main/` в `frontend/`:
-
-| Что | Объём |
+| Этап | Что было |
 |---|---|
-| Страницы верхнего уровня (`src/*.js`) | 38 файлов: лендинг (Main), команда (MainTeam), статистика (Covid), туберкулёз (Tub), модельные страницы (Modeling, ModelingSEIR_HCD, The_spread_of_epidemics), описания направлений (Data_processing_and_analysis, Medicine, Pollution_modeling, Social_processes), новости (News), конференции (Conferences), каталог данных (Data), полезные ссылки (Links), + `_En`-дубли каждой страницы |
-| `src/Components/` | 75 файлов: NaviBar, Footer, биографии 9 человек (Krivorotko, Kabanikhin, Mikhailapov, Petrakova, Semenova, Nesterova, Zyatkov, Zvonareva, Neverov), описания моделей AOM/SEIRHCD, статические таблицы Covid/Tub, контакты, публикации |
-| `src/news/` | 66 страниц отдельных новостей и семинаров |
-| `src/conference/` | 12 страниц отдельных конференций (Theory and Numerical Methods, Astana, MathematicsAI и др.) |
-| `src/images/` | 21 MB картинок (логотипы, схемы моделей, иллюстрации) |
-| `public/` | Favicon, manifest, robots.txt, logo-файлы |
+| **Старый сайт** (`CODE/ORIGINAL/`) | Два репо: React-фронт `new-covid-main` (130+ страниц) + Node-бэк `server.app.covid19-modeling-main` (4494-строчный `index.js`, child_process Python для Covasim, данные в CSV/JSON). Монолит без слоёв. |
+| **Этап 1: docker-compose v0** | Подняли FastAPI + PostgreSQL + React в Docker. Сидеры регионов, timeseries, seir_params. Хранится на ветке [`backend-modeling-wip`] и снимке `ai_biolab_docker` локально. |
+| **Этап 2: SEIR/Covasim** (отложен) | Попытка перенести `dlya_kati.py` + `SARIMAX.py` в наш FastAPI на ветке `backend-modeling-wip`. Реализовано, но не дочищено — упёрлось в NaN/dtype-проблемы Covasim. Документировано в `BACKEND_WIP.md` на ветке. |
+| **Этап 3: Новый подготовленный бэк** | Был параллельно подготовлен проект с бэком, но более production-ready: async POST→polling→GET, Idempotency-Key, anon-сессии, cancel, rate limiting. |
+| **Этап 4 (текущий): объединение** | Берём подготовленный проект с бэком как базу (готовые UI + async-бэк), добавляем данные (75 регионов, 3 CSV-таймсерии, seir_params) из прошлых этапов и MFG-сценарии (16 CSV из `data_to_import`). Это **текущее состояние**. |
 
-### Что работает
+---
 
-- **Все статические страницы рендерятся** при переходе по адресам:
-  - http://localhost:3000/ — лендинг
-  - http://localhost:3000/mainTeam — команда + биографии
-  - http://localhost:3000/news, /conferences, /sem_compl
-  - http://localhost:3000/data — каталог данных
-  - http://localhost:3000/links — полезные ссылки
-  - http://localhost:3000/data_processing_and_analysis, /medicine, /pollution_modeling, /social_processes — описания направлений
-  - 130+ роутов с английскими дублями (`/...../En`)
-- **Сборка**: webpack компилит весь bundle через `npm ci` + react-scripts. CRA 5 c замороженным `package-lock.json` из ORIGINAL.
+## 2. Архитектура: ТЗ vs реализация
 
-### Что НЕ работает (пока)
+ТЗ требует **трёхслойный монолит Router → Service → Repository → PostgreSQL** + изолированный модуль Modeling. Слои названы в коде иначе, но **семантика та же**:
 
-Все интерактивные элементы, которые зависели от старого Node-бэка (`server.ai-biolab.ru`):
-- Страница **Modeling** — форма сценарного SEIR-моделирования, axios-вызовы на `https://server.ai-biolab.ru/data`, `/getUMsim2`, `/getMsim` фейлятся (бэк недоступен по этому URL)
-- Страница **ModelingSEIR_HCD** — SARIMAX-прогнозы, вызовы на `/datesSEIR`, `/api/forecasts*`, `/api/res_valid`, `/api/res_train` фейлятся
-- Страница **The_spread_of_epidemics** — графики распространения, вызовы на `/getMsim`, `/api/csvCovid/nd` фейлятся
-- Страница **Covid (statistics)** — 77 хардкод-URL на `/api/csvCovid/<region>`, не отдают данные
-- Страница **Tub** — 77 URL на `/api/csvTub/<region>` и `/api/csvSocTub/<region>`
+| Слой по ТЗ | Где в коде | Что внутри |
+|---|---|---|
+| **Router** | `backend/app/api/` | `agent.py`, `ml_forecast.py`, `mfg.py`, `common.py` — принимают HTTP, валидируют через Pydantic, делегируют дальше. SQL ЗДЕСЬ НЕТ. |
+| **Service** (разбит на 2 компонента) | `backend/app/core/orchestrator.py` + `backend/app/providers/postgres_provider.py` | **Orchestrator** управляет жизненным циклом расчётов (очередь, cancel, heartbeat, Idempotency). **Provider** содержит бизнес-логику по моделям. HTTP ЗДЕСЬ НЕТ. |
+| **Repository** | `backend/app/core/db.py` | Только функции `connect()`, `get_config()`, `upsert_*()`, `get_mfg_scenario()` и т.д. Raw SQL через `psycopg`. Бизнес-логики ЗДЕСЬ НЕТ. |
+| **Modeling** (изолированный модуль) | пока отсутствует | На ветке `backend-modeling-wip` есть `app/modeling/seir.py` с реальным Covasim. Предполагается при интеграции будет встроено как метод `PostgresDataProvider.run_agent` или новый `CovasimProvider`. |
 
-Это **ожидаемо** — старый бэк выключен, новый FastAPI на другом хосте (`http://localhost:8000`). В консоли браузера будут видны ошибки `net::ERR_NAME_NOT_RESOLVED` или CORS.
+**Strategy Pattern**: провайдер задан через `DataProvider(ABC)` + factory (`get_provider() -> DataProvider`). Сегодня `PostgresDataProvider`, завтра можно подменить на `FileDataProvider` или `MockDataProvider` без переписывания роутеров.
 
-### Что переключить дальше
-
-В `frontend/src/api/client.js` уже есть `axios`-инстанс с `baseURL=process.env.REACT_APP_API_URL`. Следующий шаг — переписать вызовы во всех страницах:
-- `https://server.ai-biolab.ru/api/csvCovid/<region>` → `client.get('/api/v1/regions/<slug>/timeseries')` (один endpoint вместо 77)
-- `https://server.ai-biolab.ru/data` (POST) → `client.post('/api/v1/scenarios/run')` (новый контракт)
-- `https://server.ai-biolab.ru/api/forecasts*` → `client.get('/api/v1/forecasts/...')` (заглушки на бэке)
-
-### Что появится в будущем (новый функционал по ТЗ)
-
-В `App.js` появятся новые роуты для двух обязательных по ТЗ инструментов:
-- **Инструмент детекции вспышек** (`/outbreaks` или встроить в The_spread_of_epidemics): карта/выпадашка регионов РФ + цветовой градиент Rt + сравнение динамики по нескольким регионам. На бэке — `GET /api/v1/outbreaks` (сейчас заглушка)
-- **Инструмент сценарного моделирования с интервенциями**: расширение формы Modeling — добавить поля для локдауна и вакцинации. На бэке — расширение `POST /api/v1/scenarios/run` (новые поля в payload)
-
-Также планируется серверный экспорт PNG/PDF/CSV/ZIP (сейчас экспорт делается на клиенте через `js-file-download`).
-
-## Залив в GitHub (пустой репозиторий)
-
-Из директории `ai_biolab_docker/`:
-
+**Зависимости направлены строго сверху вниз**: проверка через grep —
 ```bash
-cd CODE/ai_biolab_docker
-
-# 1. инициализировать git (если ещё не сделано)
-git init
-
-# 2. проверить, что .env НЕ попадает в коммит (он в .gitignore)
-git status
-
-# 3. зафиксировать всё
-git add .
-git commit -m "init: docker-compose v0 (FastAPI + PostgreSQL + CRA-shell)"
-
-# 4. указать ветку main
-git branch -M main
-
-# 5. подключить удалённый репо (замени URL на свой)
-# через HTTPS:
-git remote add origin https://github.com/USERNAME/REPO_NAME.git
-# или через SSH:
-# git remote add origin git@github.com:USERNAME/REPO_NAME.git
-
-# 6. запушить
-git push -u origin main
+grep -rn "from fastapi" backend/app/providers/    # должно быть пусто
+grep -rn "from fastapi" backend/app/core/db.py    # должно быть пусто
+grep -rn "select\|INSERT" backend/app/api/         # должно быть пусто
 ```
 
-Если хочешь подружить с `gh` (GitHub CLI):
-```bash
-gh auth login                                # один раз
-gh repo create REPO_NAME --private --source=. --remote=origin --push
-```
+---
 
-При следующих изменениях:
-```bash
-git add .
-git commit -m "что сделано"
-git push
-```
+## 3. Технологический стек
 
-**Что НЕ попадёт в коммит** (уже в `.gitignore`): `.env`, `node_modules/`, `__pycache__/`, `.DS_Store`, `build/`, `*.log`.
+### Backend
+- **Python 3.11** + **FastAPI 0.115** + **uvicorn**
+- **PostgreSQL 18-alpine** (mount `/var/lib/postgresql`, имя volume'а `ai_biolab_anna_pg18_data`)
+- **psycopg 3** (raw SQL, без ORM)
+- **openpyxl** (для импорта `.xlsx` MFG-сценариев)
+- *Зависимости отложенные:* `covasim`, `statsmodels`, `tensorflow/keras` — добавятся когда дойдём до интеграции реальных моделей
 
-## Структура
+### Frontend
+- **React 18** + **Create React App** (react-scripts 5.0.0)
+- **react-bootstrap**, **react-router-dom v6**
+- **Highcharts** (для MFG/Agent графиков — ограниченный zoom, нет wheel-zoom)
+- **react-katex** (для рендеринга LaTeX-формул на странице MFG)
+- **axios** (REACT_APP_API_URL)
+
+### Инфраструктура
+- **docker-compose** (4 сервиса: db, db-init, api, frontend)
+- **Makefile** (~30 команд)
+- **bind-mount'ы**: `./backend → /app`, `./frontend → /app`, `./data → /data:ro`, `./data_to_import → /data_to_import`
+
+---
+
+## 4. Структура проекта
 
 ```
 ai_biolab_docker/
-├── docker-compose.yml           # api + db + frontend, healthcheck, volumes
-├── .env / .env.example          # переменные окружения для всего стека
-├── .gitignore
+├── docker-compose.yml             # 4 сервиса, PG18, named volume ai_biolab_anna_pg18_data
+├── .env, .env.example
+├── Makefile                       # up/down/seed/seed-check/reset-mfg/psql/...
+├── README.md                      # этот файл
+├── INTEGRATION_NOTES.md           # карта интеграции (что добавлено сверх проекта с этапа 3)
 │
-├── backend/                     # FastAPI
-│   ├── Dockerfile               # python:3.12-slim + uvicorn --reload
-│   ├── requirements.txt
-│   ├── alembic.ini              # миграции БД
-│   ├── alembic/
-│   │   ├── env.py
-│   │   └── versions/            # сюда будут падать миграции
-│   └── app/
-│       ├── main.py              # entrypoint FastAPI, lifespan, CORS, include_router
-│       ├── core/
-│       │   ├── config.py        # pydantic-settings
-│       │   ├── database.py      # SQLAlchemy 2.x engine + SessionLocal + Base + get_db
-│       │   └── logging.py
-│       ├── routers/             # ── СЛОЙ Router (валидация + делегирование) ──
-│       │   ├── health.py        #   GET /health, GET /health/db
-│       │   ├── regions.py       #   GET /api/v1/regions, /{slug}
-│       │   ├── scenarios.py     #   POST /api/v1/scenarios/run (SEIR Covasim)
-│       │   ├── forecasts.py     #   STUB — SARIMAX-прогнозы
-│       │   └── outbreaks.py     #   STUB — детекция вспышек (новый раздел ТЗ)
-│       ├── schemas/             # Pydantic — DTO для I/O
-│       │   ├── region.py
-│       │   ├── scenario.py
-│       │   └── forecast.py
-│       ├── services/            # ── СЛОЙ Service (бизнес-логика) ──
-│       │   ├── region_service.py
-│       │   ├── scenario_service.py
-│       │   └── forecast_service.py
-│       ├── repositories/        # ── СЛОЙ Repository (единственный доступ к БД) ──
-│       │   ├── base.py
-│       │   ├── region_repo.py
-│       │   └── scenario_repo.py
-│       ├── models/              # SQLAlchemy ORM
-│       │   ├── region.py        #   таблица regions
-│       │   └── scenario_run.py  #   таблица scenario_runs (логирование запусков SEIR)
-│       └── modeling/            # ── МОДУЛЬ Modeling (Python-скрипты, БЕЗ импорта FastAPI) ──
-│           ├── README.md        #   план переноса dlya_kati.py / SARIMAX.py
-│           ├── seir.py          #   STUB — run_seir_stub
-│           └── sarimax.py       #   STUB
+├── backend/
+│   ├── Dockerfile                 # python:3.11-slim
+│   ├── requirements.txt           # fastapi, uvicorn, pydantic, psycopg, openpyxl
+│   ├── db/schema.sql              # 9 таблиц (6 с этапа 3 + 3 с этапа 1)
+│   │
+│   ├── app/                       # ── код бэка ──
+│   │   ├── main.py                # FastAPI app, CORS, X-Request-ID, anon-cookie
+│   │   ├── api/                   # ★ СЛОЙ ROUTER
+│   │   │   ├── agent.py           #   /api/models/agent/*
+│   │   │   ├── ml_forecast.py     #   /api/models/ml-forecast/*
+│   │   │   ├── mfg.py             #   /api/models/mfg/*
+│   │   │   └── common.py          #   /api/health, /api/regions (TODO)
+│   │   ├── core/
+│   │   │   ├── orchestrator.py    # ★ СЛОЙ SERVICE (часть 1): Run-объект, очередь, cancel
+│   │   │   ├── schemas.py         #   Pydantic-DTO
+│   │   │   ├── settings.py        #   pydantic-settings
+│   │   │   ├── db.py              # ★ СЛОЙ REPOSITORY — raw SQL через psycopg
+│   │   │   └── errors.py
+│   │   └── providers/             # ★ СЛОЙ SERVICE (часть 2): Strategy Pattern
+│   │       ├── base.py            #   DataProvider (ABC)
+│   │       ├── factory.py         #   get_provider() с lru_cache
+│   │       └── postgres_provider.py  # реальная реализация
+│   │
+│   ├── mock_data/                 # ── моки JSON для первичной заливки в БД ──
+│   │   ├── agent/{config,result}.json
+│   │   ├── ml_forecast/
+│   │   │   ├── config.json
+│   │   │   ├── results/{cgan,lstm,seir_hcd}.json
+│   │   │   └── precomputed/{modeling,validation}.json
+│   │   └── mfg/
+│   │       ├── config.json        # ★ ПОЛНОЕ описание MFG-модели: функционал, уравнения, начальные условия, периоды, стратегии, параметры, состояния
+│   │       └── scenarios/         # пусто (был mock-файл, удалён — заменён реальными CSV из data_to_import/)
+│   │
+│   └── scripts/                   # ── сидеры и импортёры ──
+│       ├── init_db.py             # CREATE TABLE IF NOT EXISTS из schema.sql
+│       ├── import_mock_data_to_db.py  # Анин: грузит mock_data/* в app_config/mock_results/ml_*/mfg_scenarios
+│       ├── import_mfg_scenarios_to_db.py  # Анин: парсит CSV/XLSX/JSON из data_to_import/, дополняет датами из mfg/config.json
+│       ├── regions_data.py        # 77 регионов РФ (inline, выпарсено из ORIGINAL/Covid.js)
+│       ├── seed_regions.py        # → таблица regions
+│       ├── seed_timeseries.py     # CSV в /data/regions/ → таблица region_timeseries
+│       ├── seed_seir_params.py    # JSON в /data/seir/ → таблица seir_params
+│       └── seed_all.py            # оркестратор: regions + timeseries + seir_params
 │
-├── frontend/                    # React (CRA, оставляем по решению Ильи)
-│   ├── Dockerfile               # node:20-alpine + react-scripts start
-│   ├── package.json             # минимум: react, react-router-dom, axios
-│   ├── public/index.html
-│   └── src/
-│       ├── index.js, App.js, index.css
-│       ├── api/client.js        # axios-инстанс с REACT_APP_API_URL
-│       └── pages/HealthCheck.js # проверка связи с API + БД
+├── data/                          # ── СПРАВОЧНЫЕ ДАННЫЕ (mount /data:ro) ──
+│   ├── regions/{Novosibirsk,Omsk,Altai}.csv  # ~2200 строк эпидемиологии 2020-2022
+│   └── seir/params_08_04_2022.json # калибровка Covasim для НСО
 │
-└── data/                        # монтируется в api как /data:ro
-    └── README.md                # сюда копировать CSV/JSON из ORIGINAL
+├── data_to_import/                # ── ДРОП ФАЙЛОВ ДЛЯ ИМПОРТА (mount /data_to_import) ──
+│   └── SEIR_HCD_TGC_Period{1..4}_{BasicScenario,Events,MasksWearing,TotalLoc}.csv
+│                                  # 16 файлов: 4 периода × 4 стратегии MFG
+│
+└── frontend/                      # ── React SPA ──
+    ├── Dockerfile
+    ├── package.json               # 36 dependencies (полный набор оригинального new-covid-main)
+    ├── package-lock.json          # 886 KB (замороженное дерево)
+    └── src/
+        ├── App.js                 # роутер, 130+ путей; /modeling и /the_spread_of_epidemics → ModelingHub
+        ├── api/
+        │   ├── client.js          # axios-инстанс с REACT_APP_API_URL
+        │   └── modelingApi.js     # обёртки над /api/models/*
+        ├── modeling/              # ── НОВЫЙ раздел моделирования ──
+        │   ├── ModelingHub.js     # ★ ГЛАВНЫЙ компонент (3 вкладки: Agent / ML-Forecast / MFG)
+        │   ├── ModelingHub.css
+        │   ├── useAsyncModelRun.js  # хук для POST→polling→GET с восстановлением через localStorage
+        │   └── components/TimeSeriesChart.js  # Highcharts wrapper
+        ├── Components/, news/, conference/, images/  # ВСЕ старые статические страницы сохранены
+        └── (всё остальное из старого сайта)
 ```
 
-## Запуск
+---
 
+## 5. База данных — 9 таблиц
+
+### Этап 3 (6 шт.) — общие для всех моделей и моков
+- `app_config(section TEXT PK, data_json JSONB, updated_at)` — конфиги agent/ml_forecast/mfg
+- `mock_results(key TEXT PK, data_json JSONB, updated_at)` — результаты agent (mock)
+- `ml_forecast_model_results(model_id TEXT PK, data_json JSONB)` — моки для CGAN/LSTM/SEIR-HCD
+- `ml_precomputed_results(result_type, region_id, model_id, indicator_id, data_json)` — modeling/validation моки
+- `mfg_scenarios(scenario_id PK, region_id, period_id, strategy_id, data_json, source_*)` — **16 реальных MFG-сценариев**
+- `imported_files(file_hash PK, source_file, file_size, file_mtime, status)` — аудит импорта (SHA-256 дедупликация)
+
+### Этап 1 (3 шт.) — справочные данные из ORIGINAL
+- `regions(id, slug UNIQUE, name, district, center, population, area, density)` — 77 строк
+- `region_timeseries(id, region_slug, date, new_diagnoses, cum_diagnoses, …, extra JSONB, UNIQUE(slug,date))` — ~2200 строк (NSK/Omsk/Altai)
+- `seir_params(id, region_slug, label, params JSONB, UNIQUE(slug,label))` — 1 запись (Новосибирск)
+
+### Проверка
+```bash
+make seed-check
+# regions count → 77
+# timeseries by region → 3 региона с диапазонами дат
+# seir_params → 1 запись
+# mfg_scenarios → 16 строк (4 periods × 4 strategies)
+```
+
+---
+
+## 6. API endpoints
+
+Все endpoint'ы под `/api/`. Swagger UI: http://localhost:8001/docs
+
+### Здоровье
+- `GET /api/health` — `{"status":"ok"}`
+
+### Агентная модель (mock, готово к интеграции с Covasim из ветки `backend-modeling-wip`)
+- `GET  /api/models/agent/config` — параметры формы, регионы, дефолтные значения
+- `POST /api/models/agent/runs` (Idempotency-Key) → `{run_id, status}`
+- `GET  /api/models/agent/runs/{run_id}/status`
+- `GET  /api/models/agent/runs/{run_id}/results`
+- `POST /api/models/agent/runs/{run_id}/cancel`
+- `GET  /api/models/agent/runs/{run_id}/table` — табличная форма результата
+
+### ML-Forecast (CGAN + LSTM + SEIR-HCD; все mock)
+- `GET  /api/models/ml-forecast/config`
+- `POST /api/models/ml-forecast/runs` — `{model_ids: ['cgan','lstm','seir_hcd'], context_date, ...}`
+- `GET  /api/models/ml-forecast/runs/{run_id}/{status,results,table}`
+- `POST /api/models/ml-forecast/runs/{run_id}/cancel`
+- `GET  /api/models/ml-forecast/modeling?region_id=&model_id=&indicator_id=` — для вкладки «Моделирование»
+- `GET  /api/models/ml-forecast/validation?region_id=&model_id=&indicator_id=` — для вкладки «Валидация»
+
+### MFG (модель среднего поля — **РЕАЛЬНЫЕ данные**)
+- `GET  /api/models/mfg/config` — описание модели, формулы (LaTeX), параметры, стратегии, периоды
+- `GET  /api/models/mfg/scenario-results?region_id=&period_id=&strategy_id=` — series S/E/I/R/H/C/D по датам
+
+---
+
+## 7. Модели — состояние интеграции
+
+| Модель | Тип | Endpoints | Реальный код | Где взять реальный код |
+|---|---|---|---|---|
+| **Agent (Covasim)** | Agent-based, 100k агентов | `/api/models/agent/*` | ❌ mock | Ветка `backend-modeling-wip` — `app/modeling/seir.py::run_seir()` |
+| **CGAN** | Conditional GAN | `/api/models/ml-forecast/*` (model_id=cgan) | ❌ mock | Отдельный проект `CODE/covid19.cgan-main/` — `run_trained_model.py` + веса `.h5` 107 MB |
+| **LSTM** | Deep Learning RNN | `/api/models/ml-forecast/*` (model_id=lstm) | ❌ mock | Нет в проекте — нужно получить |
+| **SEIR-HCD (ML)** | Компартментная статистика | `/api/models/ml-forecast/*` (model_id=seir_hcd) | ❌ mock | Pickle `COVID19_forecasts.p` в `ORIGINAL/server.app.covid19-modeling-main/` (готовые офлайн-прогнозы) |
+| **MFG-SEIR-HCD** | Mean Field Game + 7 ODE | `/api/models/mfg/*` | ✅ **РЕАЛЬНЫЕ ДАННЫЕ** из 16 CSV | Уже интегрировано в `mfg_scenarios` таблицу |
+
+### MFG — что показывает фронт сейчас
+- **Функционал J** (формула из (1) PDF) — отрендерен через KaTeX
+- **7 ОДУ системы** — отрендерены
+- **Начальные условия** — формула гауссовых распределений
+- **Реальные коэффициенты** $a_1, \dots, a_6$ для каждого сценария (BasicScenario, Events, MasksWearing, TotalLoc)
+- **Реальные начальные значения** $A_S, A_E, A_I, A_R, A_H, A_C, A_D$ для каждого из 4 периодов (взяты из PDF)
+- **График** динамики S/E/I/R/H/C/D через Highcharts
+
+PDF-источник: `Описание.pdf` (стр. 1-4).
+
+---
+
+## 8. Запуск и команды
+
+### Первый запуск
 ```bash
 cd CODE/ai_biolab_docker
-cp .env.example .env          # уже скопирован, при необходимости отредактируй пароли
-
-docker compose up --build     # первая сборка ~5 мин (npm install + pip install)
+cp .env.example .env
+make up-build            # сборка + запуск
+make logs-init           # увидеть как db-init засеял всё
+make seed-check          # проверить регионы/timeseries/seir/mfg
+# Открыть http://localhost:3000/modeling
 ```
 
-После запуска:
+### Адреса
+- Frontend: http://localhost:3000
+- API: http://localhost:8001
+- Swagger: http://localhost:8001/docs
+- PostgreSQL: `localhost:15433` (user `ai_biolab`, pass `ai_biolab`, db `ai_biolab`)
 
-| URL | Что |
-|---|---|
-| http://localhost:8000/health | `{"status":"ok"}` |
-| http://localhost:8000/health/db | `{"status":"ok","db_alive":true}` |
-| http://localhost:8000/docs | Swagger UI (FastAPI) |
-| http://localhost:8000/api/v1/regions | список регионов (пустой пока БД не засеяна) |
-| http://localhost:3000 | React-фронт, страница HealthCheck дергает оба endpoint'а |
-| `psql -h localhost -p 15432 -U ai_biolab -d ai_biolab` | прямой доступ к БД (пароль `changeme`); порт 15432 чтобы не конфликтовать с локальными PG. Или `make psql` через docker exec — обходит порт |
+### Makefile — ключевые команды
+```
+make help              # список всех команд
 
-### Проверка работоспособности
+# Жизненный цикл
+make up                # запуск
+make up-build          # запуск с пересборкой образов (после правок Python/JS)
+make down              # остановка (БД сохраняется)
+make clean             # ВСЁ снести вместе с данными (СБРАСЫВАЕТ БД)
+make clean-pg-legacy   # снести старые PG-volume'ы (от PG16 или прежних попыток)
 
+# Логи
+make logs              # tail всего стека
+make logs-api, logs-front, logs-db, logs-init
+
+# Доступ
+make psql              # psql внутри db (без пароля, через docker exec)
+make psql-host         # psql с хоста через порт 15433 (берёт пароль из .env)
+make sh-api, sh-front, sh-db  # bash внутри контейнера
+
+# Сидеры
+make seed              # все наши: regions + timeseries + seir_params
+make seed-regions, seed-timeseries, seed-seir, seed-mfg, seed-mfg-replace
+make reset-mfg         # очистить mfg_scenarios и переимпортировать (полезно после правок mfg/config.json)
+make seed-check        # COUNT по всем таблицам
+
+# Фронт
+make front-reset       # пересоздать node_modules volume
+
+# Healthcheck
+make health            # curl /api/health
+```
+
+### Типичные workflow'ы
+
+#### «Поправил Python в backend/scripts или backend/app»
 ```bash
-# 1. Стек поднялся
-docker compose ps             # все три сервиса должны быть healthy
-
-# 2. API живой
-curl http://localhost:8000/health
-curl http://localhost:8000/health/db
-
-# 3. БД живая через API
-curl http://localhost:8000/api/v1/regions      # []
-
-# 4. Запуск SEIR-сценария (заглушка, но запишет в scenario_runs)
-curl -X POST http://localhost:8000/api/v1/scenarios/run \
-  -H "Content-Type: application/json" \
-  -d '{"region_slug":"novosibirsk","population":2798170,"n_future_days":45,"initial_infected":20}'
-
-curl http://localhost:8000/api/v1/scenarios/1
-
-# 5. Что в БД
-docker compose exec db psql -U ai_biolab -d ai_biolab -c "\dt"
-docker compose exec db psql -U ai_biolab -d ai_biolab -c "SELECT * FROM scenario_runs;"
+make up-build
 ```
+(пересоберёт образ, db-init не перезапустится автоматически — старые данные останутся, новые сидеры выполнятся идемпотентно)
 
-### Полезные команды
-
+#### «Поправил mock_data/mfg/config.json (описания, формулы, коэффициенты)»
 ```bash
-docker compose logs -f api          # логи бэка
-docker compose logs -f frontend     # логи CRA
-docker compose down                 # остановить
-docker compose down -v              # остановить + удалить БД (полный сброс)
+docker compose exec api python scripts/import_mock_data_to_db.py
+```
+(перезальёт config в `app_config` — фронт получит новое сразу через `/api/models/mfg/config`)
 
-# Миграции Alembic (когда понадобятся вместо create_all)
-docker compose exec api alembic revision --autogenerate -m "init"
-docker compose exec api alembic upgrade head
+#### «Добавил/изменил CSV в data_to_import/»
+```bash
+make seed-mfg            # инкрементально (новые файлы добавятся, существующие пропустятся)
+make seed-mfg-replace    # принудительно заменить существующие
+make reset-mfg           # очистить mfg_scenarios и переимпортировать
 ```
 
-## Что уже работает
+#### «Изменил CSV в data/regions/ или params в data/seir/»
+```bash
+make seed                # идемпотентно, дозальёт новое
+```
 
-- **PostgreSQL 18** в контейнере с persistent volume и healthcheck (pg_isready).
-- **FastAPI** с трёхслойной архитектурой Router → Service → Repository → DB, и отдельным модулем Modeling без зависимостей от FastAPI (как требует ТЗ).
-- **CORS** настроен на `http://localhost:3000`.
-- **SQLAlchemy 2.x + Pydantic v2** (актуальные стеки).
-- **Hot reload** для бэка (uvicorn --reload) и фронта (CRA).
-- При первом запуске API создаёт таблицы `regions` и `scenario_runs` через `Base.metadata.create_all()` (заглушка вместо alembic, пока миграций нет).
-- **Endpoint логирования запусков:** `POST /api/v1/scenarios/run` пишет запись в `scenario_runs` (status, started_at, finished_at, result jsonb) — реализует требование ТЗ «система логирует каждый запуск расчётов».
+#### «Изменил mfg/config.json (даты, периоды, стратегии)»
+```bash
+docker compose exec api python scripts/import_mock_data_to_db.py
+make reset-mfg     # CSV перечитаются с новыми датами из config
+```
 
-## Что НЕ работает (заглушки) — план переноса
+---
 
-| Что | Откуда переносить | Куда здесь |
-|---|---|---|
-| Реальный Covasim/SEIR | `ORIGINAL/server.app.covid19-modeling-main/dlya_kati.py` + `calibration_total.py` + `functions_total.py` | `backend/app/modeling/seir.py::run_seir_stub` → `run_seir` |
-| SARIMAX-прогнозы | `ORIGINAL/.../SARIMAX.py` + `func.py` + `convertCOVID19_f.py` + `COVID19_forecasts.p` | `backend/app/modeling/sarimax.py` |
-| Сидер 85 регионов РФ | хардкод из `ORIGINAL/new-covid-main/src/Covid.js` (массив `regions[]`) | `backend/app/scripts/seed_regions.py` (новый) → таблица `regions` |
-| Загрузка CSV-таймсерий | `ORIGINAL/.../Novosibirsk.csv`, `Omsk.csv`, `Altai.csv` + удалённые `*-region-data.csv` | таблица `timeseries` (region_slug, date, new_diagnoses, …) — модель добавить |
-| Параметры SEIR | `ORIGINAL/.../params_08_04_2022.json` | таблица `seir_params` |
-| Предрасчёт MultiSim | `ORIGINAL/.../msim_res.json` (3.5 MB) | seed → `scenario_runs` или отдельная таблица |
-| Endpoint детекции вспышек | НЕТ в старом фронте, новый функционал по ТЗ | `routers/outbreaks.py` + service + map/dropdown на фронте |
-| Экспорт PNG/PDF/CSV/ZIP с сервера | сейчас на клиенте (`js-file-download`) | `routers/exports.py` + WeasyPrint/Pillow |
+## 9. Что готово
 
-## Что НЕ работает на фронте (минимальный shell)
+### Что работает
+- ✅ Frontend перенесён полностью (все статические страницы, биографии, новости, конференции)
+- ✅ Async POST→polling→GET pattern для всех 3 моделей (с моками)
+- ✅ MFG-вкладка: РЕАЛЬНЫЕ данные 16 сценариев из CSV, графики, формулы через KaTeX, описания
+- ✅ Идемпотентные сидеры
+- ✅ db-init контейнер автоматически создаёт схему и засевает данные
+- ✅ Восстановление активного run'а после reload через localStorage
+- ✅ Cancel расчётов, Idempotency-Key
 
-Сейчас `frontend/src/` — только заглушка с одной страницей HealthCheck.
+### Что не работает / TODO
 
-**Что переносим из `ORIGINAL/new-covid-main/src/`** (по решению Ильи — переносим всё, включая `_En`-дубли):
+#### Реальные модели вместо моков (нужно интегрировать)
+- **Covasim** в `run_agent`: переносить из ветки `backend-modeling-wip` репо `ai_biolab_docker`. Там есть `app/modeling/seir.py::run_seir()` + helpers + sarimax, переписанные из `dlya_kati.py`/`functions_total.py`. Известные баги документированы в `BACKEND_WIP.md` ветки.
+- **CGAN** в `run_ml_forecast` (для `model_id=cgan`): отдельный проект `CODE/covid19.cgan-main/`. Веса в `data/model/*.h5` (~107 MB). Текущий `run_trained_model.py` делает бэктест на всём ряду — нужно отрефакторить в `predict_on_date(target_date) -> dict`.
+- **LSTM**: нет кода — спросить у учёных.
+- **SEIR-HCD ML**: pickle `COVID19_forecasts.p` в `ORIGINAL/server.app.covid19-modeling-main/`. Нужен скрипт-распаковщик (адаптация `convertCOVID19_f.py`).
 
-| Категория | Файлы | Что делаем |
-|---|---|---|
-| Каркас | App.js, NaviBarv2(_En).js, Footer(_En).js, styles.css, App.css | копируем + обновляем Routes |
-| Лендинг | Main.js, Main_En.js, MainTeam(_En).js, Components/Main_*.js | копируем как есть |
-| Биографии (9 человек × 2 языка) | Components/{Krivorotko, Kabanikhin, Mikhailapov, Petrakova, Semenova, Nesterova, Zyatkov, Zvonareva, Neverov}_info(_En).js | копируем как есть |
-| Учебные курсы | Components/Krivorotko_*_teaching*.js | копируем как есть |
-| Описания направлений | Data_processing_and_analysis(_En).js, Medicine(_En).js, Pollution_modeling(_En).js, Social_processes(_En).js, The_spread_of_epidemics(_En).js | копируем (axios-вызовы → REACT_APP_API_URL) |
-| Новости (66 файлов) | src/news/* | копируем как есть |
-| Конференции (12 файлов) | src/conference/* + Conferences(_En).js, Sem_Compl(_En).js | копируем как есть |
-| Скачивание статики | Data(_En).js | URL `https://ai-biolab.ru/data/*.csv` → новый CDN или endpoint /api/v1/files/ |
-| **★ Modeling SEIR** | Modeling(_En).js (2193 стр.) | копируем + axios → `${API}/api/v1/scenarios/run` |
-| **★ ModelingSEIR_HCD** | ModelingSEIR_HCD(_En).js (2095 стр.) | копируем + axios → `${API}/api/v1/forecasts/...` |
-| **★ The_spread_of_epidemics** | The_spread_of_epidemics(_En).js (2287 стр.) | копируем + axios → `${API}/...` |
-| **★ Covid (статистика)** | Covid(_En).js | копируем, убрать массив 77 хардкод-URL → единый `${API}/api/v1/regions/{slug}/timeseries` |
-| **★ Tub** | Tub(_En).js | то же что Covid |
-| Картинки | src/images/ (21 MB) + public/ | копируем как есть |
+#### Frontend WIP
+- Старые axios-вызовы в страницах `Modeling.js`, `ModelingSEIR_HCD.js`, `Covid.js`, `Tub.js` всё ещё идут на `https://server.ai-biolab.ru/...` — фейлятся в Network tab. Нужно глобально заменить на наш API. Но новая страница `/modeling` (→ ModelingHub) работает.
+- Возможно стоит выпилить старые `Modeling.js`, `ModelingSEIR_HCD.js`, `The_spread_of_epidemics.js` целиком — `App.js` уже редиректит на ModelingHub.
 
-Шаги переноса (планируется отдельной серией задач):
+#### Backend WIP
+- В `app/api/common.py` пока нет endpoint'а `/api/regions` для списка 77 регионов (но таблица заполнена). Когда понадобится списочный селектор регионов на фронте — добавить.
 
-1. Скопировать `ORIGINAL/new-covid-main/src/*` → `ai_biolab_docker/frontend/src/*`.
-2. Скопировать `package.json` → дополнить наш минимальный + `react-bootstrap`, `bootstrap`, `chart.js`, `react-chartjs-2`, `chartjs-plugin-zoom`, `formik`, `yup`, `framer-motion`, `js-file-download`, `react-icons`, `react-helmet`, `react-yandex-maps`, `@coreui/react-pro`, `axios-progress-bar`.
-3. Глобально заменить `https://server.ai-biolab.ru/` → `${process.env.REACT_APP_API_URL}/api/v1/` (sed).
-4. Пересобрать контейнер frontend.
+### Известные баги (исправленные)
+- ✅ `STRATEGY_MAP` не содержал `maskswearing` (с `s`) — добавлено
+- ✅ Regex `r"^period\\d+$"` (literal `\d`) — исправлено на `r"^period\d+$"`
+- ✅ MFG-импорт не проставлял даты в series (CSV только S/E/I/R/H/C/D) — добавлена `enrich_series_with_dates()` по start_date из config
 
-## Что сделано / не сделано
+---
 
-- ✅ `docker-compose.yml` — api + db + frontend, healthcheck для db (pg_isready) и api (HTTP /health).
-- ✅ FastAPI с правильной слоистой архитектурой Router → Service → Repository → PostgreSQL (соответствует Рис. 1 ПРИЛОЖЕНИЯ 2).
-- ✅ Модуль `modeling/` изолирован от FastAPI (как требует ТЗ).
-- ✅ Логирование запусков сценариев через таблицу `scenario_runs`.
-- ✅ CORS, hot reload, env-конфигурация, alembic-каркас.
-- ✅ Минимальный фронт-shell с реальной проверкой связи API ↔ DB ↔ frontend.
-- ⏸ Реальные модели (Covasim, SARIMAX) — пока заглушки, переносятся позже.
-- ⏸ Сидер регионов — добавится отдельной задачей.
-- ⏸ Перенос 130+ страниц фронта — отдельной задачей.
-- ⏸ Карта РФ / выпадашка — отдельной задачей (решение по стеку отложено).
+## 10. Git-стратегия
+
+### Текущие ветки (в репозитории github.com/ilartstu/ai_biolab_docker)
+- **`main`** — стабильная база до Этапа 2 (PG18 + сидеры). Сейчас будет полностью переписана файлами этого проекта.
+- **`backend-modeling-wip`** — WIP-попытка переноса Covasim/SARIMAX. Сохранена для коллеги, который может продолжить интеграцию реальных моделей.
+
+---
+
+## 11. Контекст для понимания
+
+- **Архитектура из ТЗ соблюдена** — слои Router/Service/Repository есть, просто названы `api/`, `core+providers/`, `db.py`.
+- **Strategy Pattern** через `DataProvider(ABC)` — подменить источник данных (PG → Mongo → файлы) можно изменением одной строчки в `factory.py`.
+- **Async-by-default** для всех расчётных endpoint'ов — POST не возвращает результат, только `run_id`. Это правильно для долгих ML-расчётов.
+- **Mock-first development** — все 3 модели возвращают синтетические JSON из БД, что позволило сделать UI без блокировки на готовности моделей.
+- **MFG — единственная модель с реальными данными.** Это позволяет демонстрировать работающую страницу.
+- **Frontend на CRA 5.0.0 с замороженным lockfile** — npm dep-hell обходится через `npm ci`. Не переходить на Vite без необходимости.
+- **PostgreSQL 18-alpine с mount `/var/lib/postgresql`** (не `/var/lib/postgresql/data` как в PG16!). При апгрейде смежных проектов помнить про новую структуру data dir.
+

@@ -30,7 +30,7 @@ function NaviBarv2_En() {
         <Nav.Link><NavLink to="/news/En" className={setActive} ><h5>News</h5></NavLink></Nav.Link>
           <h5><NavDropdown title={<span className="fdrop">Scientific directions</span>} id="collasible-nav-dropdown">
                       <NavDropdown.Item> <NavLink to="/data_processing_and_analysis/En" className={({isActive}) => isActive ? 'active-dropdown' : 'non-active-dropdown'} >Data processing and analysis</NavLink></NavDropdown.Item>
-                      <NavDropdown.Item> <NavLink to="/the_spread_of_epidemics/En" className={({isActive}) => isActive ? 'active-dropdown' : 'non-active-dropdown'} >Modeling and scenarios of epidemic spread</NavLink></NavDropdown.Item>
+                      <NavDropdown.Item> <NavLink to="/modeling/En" className={({isActive}) => isActive ? 'active-dropdown' : 'non-active-dropdown'} >Modeling and scenarios of epidemic spread</NavLink></NavDropdown.Item>
                       <NavDropdown.Item> <NavLink to="/social_processes/En" className={({isActive}) => isActive ? 'active-dropdown' : 'non-active-dropdown'} >Modeling of social processes</NavLink></NavDropdown.Item>
                       <NavDropdown.Item> <NavLink to="/pollution_modeling/En" className={({isActive}) => isActive ? 'active-dropdown' : 'non-active-dropdown'} >Modeling of pollution in the regions of the Russian Federation</NavLink></NavDropdown.Item>
                       <NavDropdown.Item> <NavLink to="/medicine/En" className={({isActive}) => isActive ? 'active-dropdown' : 'non-active-dropdown'} >Modeling in medicine</NavLink></NavDropdown.Item>

@@ -1,0 +1,152 @@
+{
+  "model": {
+    "id": "agent",
+    "title": "Агентная модель",
+    "engine": "mock-covasim",
+    "version": "mock-1.0"
+  },
+  "regions": {
+    "enabled": true,
+    "default_region_id": "novosibirsk_oblast",
+    "items": [
+      {
+        "id": "novosibirsk_oblast",
+        "name": "Новосибирская область",
+        "available": true
+      },
+      {
+        "id": "krasnoyarsk",
+        "name": "Красноярск",
+        "available": true
+      },
+      {
+        "id": "spb",
+        "name": "Санкт-Петербург",
+        "available": true
+      }
+    ]
+  },
+  "defaults": {
+    "region_id": "novosibirsk_oblast",
+    "pop_size": 100000,
+    "pop_infected": 10,
+    "forecast_days": 45,
+    "beta": 0.02,
+    "interventions": []
+  },
+  "fields": [
+    {
+      "name": "region_id",
+      "label": "Регион",
+      "type": "select",
+      "required": true
+    },
+    {
+      "name": "pop_size",
+      "label": "Население",
+      "type": "integer",
+      "min": 1000,
+      "max": 1000000,
+      "required": true
+    },
+    {
+      "name": "pop_infected",
+      "label": "Начально инфицированных",
+      "type": "integer",
+      "min": 10,
+      "max": 5000,
+      "required": true
+    },
+    {
+      "name": "forecast_days",
+      "label": "Дней прогнозирования",
+      "type": "integer",
+      "min": 1,
+      "max": 365,
+      "required": true
+    },
+    {
+      "name": "beta",
+      "label": "Контагиозность β",
+      "type": "float",
+      "min": 0.001,
+      "max": 10,
+      "required": false
+    }
+  ],
+  "interventions": {
+    "enabled": true,
+    "allow_add": true,
+    "allow_delete": true,
+    "allow_empty": true,
+    "allow_same_date": false,
+    "fields": [
+      {
+        "name": "date",
+        "label": "Дата интервенции",
+        "type": "date",
+        "required": true
+      },
+      {
+        "name": "beta_change",
+        "label": "Изменение β",
+        "type": "float",
+        "min": 0.33,
+        "max": 3,
+        "required": true
+      }
+    ]
+  },
+  "metrics": [
+    {
+      "id": "cum_infections",
+      "label": "cum_infections",
+      "group": "cumulative"
+    },
+    {
+      "id": "cum_critical",
+      "label": "cum_critical",
+      "group": "cumulative"
+    },
+    {
+      "id": "cum_recoveries",
+      "label": "cum_recoveries",
+      "group": "cumulative"
+    },
+    {
+      "id": "cum_deaths",
+      "label": "cum_deaths",
+      "group": "cumulative"
+    },
+    {
+      "id": "new_infections",
+      "label": "new_infections",
+      "group": "daily"
+    },
+    {
+      "id": "new_critical",
+      "label": "new_critical",
+      "group": "daily"
+    },
+    {
+      "id": "new_recoveries",
+      "label": "new_recoveries",
+      "group": "daily"
+    },
+    {
+      "id": "new_deaths",
+      "label": "new_deaths",
+      "group": "daily"
+    }
+  ],
+  "run_policy": {
+    "async": true,
+    "polling_interval_seconds": 2,
+    "allow_cancel": true
+  },
+  "limits_policy": {
+    "max_active_runs_per_session": 1,
+    "max_active_runs_per_ip": 3,
+    "max_queue_size": 10
+  }
+}

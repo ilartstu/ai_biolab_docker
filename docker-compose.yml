@@ -1,63 +1,92 @@
 services:
   db:
     image: postgres:18-alpine
-    container_name: ai_biolab_db
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-ai_biolab}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
       POSTGRES_DB: ${POSTGRES_DB:-ai_biolab}
+      POSTGRES_USER: ${POSTGRES_USER:-ai_biolab}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ai_biolab}
+    ports:
+      - "${POSTGRES_PORT:-15433}:5432"
     volumes:
       # PG 18 хранит данные в /var/lib/postgresql/<major>/docker;
       # монтируем родительский каталог, чтобы поддерживать pg_upgrade.
-      - pg_data:/var/lib/postgresql
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - postgres_data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ai_biolab} -d ${POSTGRES_DB:-ai_biolab}"]
       interval: 5s
       timeout: 5s
-      retries: 10
+      retries: 20
+
+  db-init:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-ai_biolab}:${POSTGRES_PASSWORD:-ai_biolab}@db:5432/${POSTGRES_DB:-ai_biolab}
+      MOCK_DATA_DIR: mock_data
+    # Последовательность инициализации:
+    #   1. init_db                          — создание схемы (CREATE TABLE IF NOT EXISTS)
+    #   2. import_mock_data_to_db           — Анины моки (agent/ml/mfg config + result JSONs)
+    #   3. seed_all                         — наши справочники: regions (75), region_timeseries (3 CSV), seir_params
+    #   4. import_mfg_scenarios_to_db       — MFG-сценарии из data_to_import/ (16 CSV SEIR-HCD по 4 periods × 4 strategies)
+    # Все шаги идемпотентны (ON CONFLICT DO NOTHING / проверка SHA-256), безопасно повторять.
+    command: >
+      sh -c "python scripts/init_db.py &&
+             python scripts/import_mock_data_to_db.py &&
+             python scripts/seed_all.py &&
+             python scripts/import_mfg_scenarios_to_db.py --input-dir /data_to_import --region-id novosibirsk_oblast"
+    volumes:
+      - ./backend/mock_data:/app/mock_data:ro
+      - ./data_to_import:/data_to_import
+      - ./data:/data:ro
+    restart: "no"
 
   api:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: ai_biolab_api
     restart: unless-stopped
-    env_file:
-      - .env
-    environment:
-      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-ai_biolab}:${POSTGRES_PASSWORD:-changeme}@db:5432/${POSTGRES_DB:-ai_biolab}
     depends_on:
       db:
         condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-ai_biolab}:${POSTGRES_PASSWORD:-ai_biolab}@db:5432/${POSTGRES_DB:-ai_biolab}
+      MOCK_DATA_DIR: mock_data
+      MOCK_SLEEP_SECONDS: ${MOCK_SLEEP_SECONDS:-3}
+      MAX_PARALLEL_RUNS: ${MAX_PARALLEL_RUNS:-2}
+      MAX_QUEUE_SIZE: ${MAX_QUEUE_SIZE:-10}
+      SECURE_COOKIE: ${SECURE_COOKIE:-false}
     ports:
-      - "${API_PORT:-8000}:8000"
+      - "${API_PORT:-8001}:8000"
     volumes:
-      - ./backend:/app
+      - ./backend/mock_data:/app/mock_data:ro
+      - ./data_to_import:/data_to_import
       - ./data:/data:ro
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health').status==200 else 1)"]
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/api/health').status==200 else 1)"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
       start_period: 15s
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: ai_biolab_frontend
     restart: unless-stopped
-    env_file:
-      - .env
+    depends_on:
+      api:
+        condition: service_healthy
     environment:
-      REACT_APP_API_URL: ${REACT_APP_API_URL:-http://localhost:8000}
+      REACT_APP_API_URL: ${REACT_APP_API_URL:-http://localhost:8001}
       CHOKIDAR_USEPOLLING: "true"
       WDS_SOCKET_PORT: "0"
-    depends_on:
-      - api
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
     volumes:
@@ -65,7 +94,6 @@ services:
       - frontend_node_modules:/app/node_modules
 
 volumes:
-  pg_data:
-    name: ai_biolab_pg18_data
+  postgres_data:
+    name: ai_biolab_anna_pg18_data
   frontend_node_modules:
-    name: ai_biolab_frontend_node_modules

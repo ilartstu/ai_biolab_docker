@@ -1,0 +1,87 @@
+{
+  "section": {
+    "id": "ml_forecast",
+    "title": "SEIR-HCD / LSTM / CGAN"
+  },
+  "blocks": [
+    {
+      "id": "daily_forecast",
+      "title": "Ежедневный прогноз",
+      "async": true
+    },
+    {
+      "id": "modeling",
+      "title": "Моделирование",
+      "async": false,
+      "precomputed": true
+    },
+    {
+      "id": "validation",
+      "title": "Валидация модели",
+      "async": false,
+      "precomputed": true
+    }
+  ],
+  "models": [
+    {
+      "id": "seir_hcd",
+      "name": "SEIR-HCD",
+      "available": true,
+      "has_extra_parameters": true
+    },
+    {
+      "id": "lstm",
+      "name": "LSTM",
+      "available": true,
+      "has_extra_parameters": false
+    },
+    {
+      "id": "cgan",
+      "name": "CGAN",
+      "available": true,
+      "has_extra_parameters": false
+    }
+  ],
+  "regions": {
+    "enabled": true,
+    "default_region_id": "spb",
+    "items": [
+      {
+        "id": "spb",
+        "name": "Санкт-Петербург",
+        "available": true
+      }
+    ]
+  },
+  "indicators": [
+    {
+      "id": "new_diagnoses",
+      "name": "Новые выявленные случаи"
+    }
+  ],
+  "date_ranges": {
+    "prediction": {
+      "min_context_date": "2020-09-28",
+      "max_context_date": "2024-03-11"
+    },
+    "validation": {
+      "min_context_date": "2020-09-28",
+      "max_context_date": "2024-03-06"
+    }
+  },
+  "forecast_settings": {
+    "context_days": 14,
+    "horizon_days": 5,
+    "n_trajectories": 100
+  },
+  "run_policy": {
+    "async": true,
+    "polling_interval_seconds": 2,
+    "allow_cancel": true
+  },
+  "limits_policy": {
+    "max_active_runs_per_session": 1,
+    "max_active_runs_per_ip": 3,
+    "max_queue_size": 10
+  }
+}

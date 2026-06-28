@@ -1,0 +1,50 @@
+{
+  "model_id": "seir_hcd",
+  "forecast": [
+    {
+      "horizon": 1,
+      "date_offset": 1,
+      "mean": 525,
+      "std": 12,
+      "low_3sigma": 489,
+      "high_3sigma": 561,
+      "actual": 504.0
+    },
+    {
+      "horizon": 2,
+      "date_offset": 2,
+      "mean": 550,
+      "std": 14,
+      "low_3sigma": 508,
+      "high_3sigma": 592,
+      "actual": 528.0
+    },
+    {
+      "horizon": 3,
+      "date_offset": 3,
+      "mean": 575,
+      "std": 16,
+      "low_3sigma": 527,
+      "high_3sigma": 623,
+      "actual": 552.0
+    },
+    {
+      "horizon": 4,
+      "date_offset": 4,
+      "mean": 600,
+      "std": 18,
+      "low_3sigma": 546,
+      "high_3sigma": 654,
+      "actual": 576.0
+    },
+    {
+      "horizon": 5,
+      "date_offset": 5,
+      "mean": 625,
+      "std": 20,
+      "low_3sigma": 565,
+      "high_3sigma": 685,
+      "actual": 600.0
+    }
+  ]
+}

@@ -50,7 +50,6 @@ import {Conferences} from './Conferences';
 import {Sem_Compl} from './Sem_Compl';
 import {Links} from './Links';
 import {Data_processing_and_analysis} from './Data_processing_and_analysis';
-import {The_spread_of_epidemics} from './The_spread_of_epidemics';
 import {Medicine} from './Medicine';
 import {Pollution_modeling} from './Pollution_modeling';
 import {Social_processes} from './Social_processes';
@@ -72,7 +71,6 @@ import {Conferences_En} from './Conferences_En';
 import {Sem_Compl_En} from './Sem_Compl_En';
 import {Links_En} from './Links_En';
 import {Data_processing_and_analysis_En} from './Data_processing_and_analysis_En';
-import {The_spread_of_epidemics_En} from './The_spread_of_epidemics_En';
 import {Medicine_En} from './Medicine_En';
 import {Pollution_modeling_En} from './Pollution_modeling_En';
 import {Social_processes_En} from './Social_processes_En';
@@ -171,12 +169,12 @@ return (<>
             <Route exact path="/" element={<Main />} />
             <Route exact path="/modeling" element={<Modeling />} />
             <Route exact path="/data_processing_and_analysis" element={<Data_processing_and_analysis />} />
-            <Route exact path="/the_spread_of_epidemics" element={<The_spread_of_epidemics />} />
+            <Route exact path="/the_spread_of_epidemics" element={<Modeling />} />
             <Route exact path="/medicine" element={<Medicine />} />
             <Route exact path="/pollution_modeling" element={<Pollution_modeling />} />
             <Route exact path="/social_processes" element={<Social_processes />} />
             <Route exact path="/data_processing_and_analysis/En" element={<Data_processing_and_analysis_En />} />
-            <Route exact path="/the_spread_of_epidemics/En" element={<The_spread_of_epidemics_En />} />
+            <Route exact path="/the_spread_of_epidemics/En" element={<Modeling_En />} />
             <Route exact path="/medicine/En" element={<Medicine_En />} />
             <Route exact path="/pollution_modeling/En" element={<Pollution_modeling_En />} />
             <Route exact path="/social_processes/En" element={<Social_processes_En />} />
