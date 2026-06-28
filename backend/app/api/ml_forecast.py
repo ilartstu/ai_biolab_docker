@@ -1,6 +1,8 @@
 from __future__ import annotations
+from pathlib import Path
 from fastapi import APIRouter, Header, Query, Request, Response
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
+from app.core.errors import api_error
 from app.core.orchestrator import jsonable, orchestrator
 from app.core.schemas import CancelRequest, MlRunRequest
 from app.providers.factory import get_provider
@@ -57,3 +59,18 @@ async def table(run_id: str, request: Request):
         "rows": rows,
         "pagination": None,
     }
+
+@router.get("/runs/{run_id}/artifacts/{artifact_key}")
+async def artifact(run_id: str, artifact_key: str):
+    if artifact_key != "forecast_csv":
+        api_error(404, "ARTIFACT_NOT_FOUND", "Артефакт не найден.")
+    try:
+        path = provider.ml_run_artifact_path(run_id, artifact_key)
+    except (KeyError, FileNotFoundError):
+        api_error(404, "ARTIFACT_NOT_FOUND", "Артефакт не найден.")
+    file_path = Path(path)
+    return FileResponse(
+        path=file_path,
+        media_type="text/csv; charset=utf-8",
+        filename=file_path.name,
+    )

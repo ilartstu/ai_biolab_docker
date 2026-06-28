@@ -93,6 +93,59 @@ def get_ml_precomputed(conn, result_type: str, region_id: str, model_id: str, in
         raise KeyError(f"ML precomputed result not found: {result_type}/{region_id}/{model_id}/{indicator_id}")
     return row["data_json"]
 
+def upsert_ml_forecast_run_result(
+    conn,
+    run_id: str,
+    model_ids: list[str],
+    region_id: str,
+    indicator_id: str,
+    context_date: str,
+    request: dict[str, Any],
+    result: dict[str, Any],
+    artifacts: dict[str, Any] | None,
+) -> None:
+    conn.execute(
+        '''
+        INSERT INTO ml_forecast_run_results(
+            run_id, model_ids, region_id, indicator_id, context_date,
+            request_json, result_json, artifacts_json, created_at
+        )
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW())
+        ON CONFLICT(run_id) DO UPDATE SET
+            model_ids = EXCLUDED.model_ids,
+            region_id = EXCLUDED.region_id,
+            indicator_id = EXCLUDED.indicator_id,
+            context_date = EXCLUDED.context_date,
+            request_json = EXCLUDED.request_json,
+            result_json = EXCLUDED.result_json,
+            artifacts_json = EXCLUDED.artifacts_json
+        ''',
+        (
+            run_id,
+            Jsonb(model_ids),
+            region_id,
+            indicator_id,
+            context_date,
+            Jsonb(request),
+            Jsonb(result),
+            Jsonb(artifacts or {}),
+        ),
+    )
+
+def get_ml_forecast_run_result(conn, run_id: str) -> dict[str, Any]:
+    row = conn.execute(
+        '''
+        SELECT run_id, model_ids, region_id, indicator_id, context_date,
+               request_json, result_json, artifacts_json, created_at
+        FROM ml_forecast_run_results
+        WHERE run_id = %s
+        ''',
+        (run_id,),
+    ).fetchone()
+    if not row:
+        raise KeyError(f"ML forecast run result not found: {run_id}")
+    return row
+
 def mfg_scenario_exists(conn, scenario_id: str, region_id: str, period_id: str, strategy_id: str, source_hash: str | None = None) -> bool:
     if source_hash:
         if conn.execute("SELECT 1 FROM imported_files WHERE file_hash = %s LIMIT 1", (source_hash,)).fetchone():

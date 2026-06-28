@@ -22,6 +22,19 @@ src/modeling/ModelingHub.css
 src/modeling/components/TimeSeriesChart.js
 ```
 
+## Добавлено для CGAN
+
+```text
+backend/app/modeling/cgan/          # перенос preprocessing + inference из covid19.cgan-main без FastAPI
+data/cgan/covid_ml_data_Spb.csv     # подготовленный датасет Санкт-Петербурга
+data/cgan/model/*.h5                # generator/discriminator из исходного проекта
+backend/generated/cgan/             # CSV-артефакты запусков
+ml_forecast_run_results             # таблица PostgreSQL для сохранённых run results/artifacts
+```
+
+CGAN подключён в существующий `POST /api/models/ml-forecast/runs` при `model_id=cgan`.
+LSTM и SEIR-HCD в этой вкладке пока остаются mock/precomputed.
+
 ## Соответствие вкладок API
 
 ### Агентная модель
@@ -41,6 +54,7 @@ GET  /api/models/ml-forecast/config
 POST /api/models/ml-forecast/runs
 GET  /api/models/ml-forecast/runs/{run_id}/status
 GET  /api/models/ml-forecast/runs/{run_id}/results
+GET  /api/models/ml-forecast/runs/{run_id}/artifacts/forecast_csv
 POST /api/models/ml-forecast/runs/{run_id}/cancel
 GET  /api/models/ml-forecast/modeling
 GET  /api/models/ml-forecast/validation

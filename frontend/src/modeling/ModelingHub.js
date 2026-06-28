@@ -19,11 +19,12 @@ import NaviBarv2 from '../Components/NaviBarv2';
 import NaviBarv2En from '../Components/NaviBarv2_En';
 import Footer from '../Components/Footer';
 import FooterEn from '../Components/Footer_En';
-import {apiErrorMessage, modelingApi} from '../api/modelingApi';
+import {API_BASE_URL, apiErrorMessage, modelingApi} from '../api/modelingApi';
 import {useAsyncModelRun} from './useAsyncModelRun';
 import {TimeSeriesChart, toTimestamp} from './components/TimeSeriesChart';
 import {BlockMath, InlineMath} from 'react-katex';
 import 'katex/dist/katex.min.css';
+import './ModelingHub.css';
 
 // Хелпер: рендерит строку с inline-математикой, обрамлённой $...$
 // Пример: "Параметры $\\alpha_E$, $\\omega_{imm}$ описывают…" → нормально отрендерится
@@ -40,9 +41,9 @@ function MathText({text}) {
     </>
   );
 }
-import './ModelingHub.css';
 
-const FORECAST_COLORS = ['#0d6efd', '#dc3545', '#198754'];
+const ACTUAL_SERIES_COLOR = '#2f5bea';
+const FORECAST_COLORS = ['#e5533d', '#198754', '#6f42c1'];
 const COMPARTMENT_COLORS = {
   S: '#6c757d',
   E: '#fd7e14',
@@ -617,37 +618,49 @@ function MlForecastPanel({language, text}) {
     const result = runController.result;
     if (!result) return [];
     const chartSeries = [];
+    const historyPoints = (result.history || [])
+      .map((row) => [toTimestamp(row.date), row.value])
+      .filter(([x, y]) => x !== null && y !== null);
+    const lastHistoryPoint = historyPoints.length ? historyPoints[historyPoints.length - 1] : null;
+
     if (result.history?.length) {
       chartSeries.push({
         name: text.actual,
-        color: '#212529',
-        lineWidth: 2,
-        data: result.history.map((row) => [toTimestamp(row.date), row.value]).filter(([x, y]) => x !== null && y !== null),
+        color: ACTUAL_SERIES_COLOR,
+        lineWidth: 3,
+        data: historyPoints,
       });
     }
     (result.models || []).forEach((model, index) => {
       const color = FORECAST_COLORS[index % FORECAST_COLORS.length];
+      const meanPoints = model.forecast
+        .map((row) => [toTimestamp(row.date), row.mean])
+        .filter(([x, y]) => x !== null && y !== null);
+      const rangePoints = model.forecast
+        .map((row) => [toTimestamp(row.date), row.low_3sigma, row.high_3sigma])
+        .filter(([x, low, high]) => x !== null && low !== null && high !== null);
+      const connectedMeanPoints = lastHistoryPoint ? [lastHistoryPoint, ...meanPoints] : meanPoints;
+      const connectedRangePoints = lastHistoryPoint
+        ? [[lastHistoryPoint[0], lastHistoryPoint[1], lastHistoryPoint[1]], ...rangePoints]
+        : rangePoints;
+
+      if (connectedRangePoints.length > 1) {
+        chartSeries.push({
+          type: 'arearange',
+          name: `${model.model_name}: ${text.lower} / ${text.upper}`,
+          color,
+          fillColor: `${color}33`,
+          lineWidth: 0,
+          zIndex: 0,
+          data: connectedRangePoints,
+        });
+      }
       chartSeries.push({
         name: `${model.model_name}: ${text.mean}`,
         color,
         lineWidth: 3,
-        data: model.forecast.map((row) => [toTimestamp(row.date), row.mean]).filter(([x, y]) => x !== null && y !== null),
-      });
-      chartSeries.push({
-        name: `${model.model_name}: ${text.lower}`,
-        color,
-        dashStyle: 'ShortDash',
-        lineWidth: 1,
-        showInLegend: false,
-        data: model.forecast.map((row) => [toTimestamp(row.date), row.low_3sigma]).filter(([x, y]) => x !== null && y !== null),
-      });
-      chartSeries.push({
-        name: `${model.model_name}: ${text.upper}`,
-        color,
-        dashStyle: 'ShortDash',
-        lineWidth: 1,
-        showInLegend: false,
-        data: model.forecast.map((row) => [toTimestamp(row.date), row.high_3sigma]).filter(([x, y]) => x !== null && y !== null),
+        zIndex: 2,
+        data: connectedMeanPoints,
       });
     });
     return chartSeries;
@@ -777,6 +790,20 @@ function MlForecastPanel({language, text}) {
                 yAxisTitle={config?.indicators?.find((item) => item.id === form.indicator_id)?.name || ''}
                 language={language}
               />
+              {runController.result.artifacts?.forecast_csv?.url && (
+                <div className="mt-3 d-flex flex-wrap align-items-center gap-2">
+                  <Button
+                    as="a"
+                    variant="outline-primary"
+                    href={`${API_BASE_URL}${runController.result.artifacts.forecast_csv.url}`}
+                  >
+                    CSV
+                  </Button>
+                  <span className="text-muted small">
+                    {language === 'en' ? 'Saved to PostgreSQL and CSV.' : 'Сохранено в PostgreSQL и CSV.'}
+                  </span>
+                </div>
+              )}
               <Accordion className="mt-4">
                 <Accordion.Item eventKey="forecast-table">
                   <Accordion.Header>{text.dataTable}</Accordion.Header>

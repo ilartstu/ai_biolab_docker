@@ -26,6 +26,21 @@ CREATE TABLE IF NOT EXISTS ml_precomputed_results (
     PRIMARY KEY (result_type, region_id, model_id, indicator_id)
 );
 
+CREATE TABLE IF NOT EXISTS ml_forecast_run_results (
+    run_id TEXT PRIMARY KEY,
+    model_ids JSONB NOT NULL,
+    region_id TEXT NOT NULL,
+    indicator_id TEXT NOT NULL,
+    context_date DATE NOT NULL,
+    request_json JSONB NOT NULL,
+    result_json JSONB NOT NULL,
+    artifacts_json JSONB,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_ml_forecast_run_results_lookup
+ON ml_forecast_run_results(region_id, indicator_id, context_date, created_at DESC);
+
 CREATE TABLE IF NOT EXISTS mfg_scenarios (
     scenario_id TEXT PRIMARY KEY,
     region_id TEXT NOT NULL,
