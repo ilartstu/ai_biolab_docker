@@ -1,4 +1,4 @@
-# ai-biolab.ru — новая архитектура
+# ai-biolab.ru сайт
 
 Веб-приложение Сириуса для эпидемиологического моделирования. Полная переписка старого монолита Node+Python+CSV на современный стек FastAPI + PostgreSQL + React с асинхронным orchestration-бэком и трёхслойной архитектурой (Router-Service-Repository).
 
