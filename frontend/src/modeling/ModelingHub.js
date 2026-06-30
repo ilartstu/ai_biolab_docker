@@ -871,6 +871,16 @@ function MlForecastPanel({language, text}) {
   );
 }
 
+const normalizeLatexEntries = (latex) => {
+  if (Array.isArray(latex)) {
+    return latex.filter((entry) => typeof entry === 'string' && entry.trim());
+  }
+  if (typeof latex === 'string' && latex.trim()) {
+    return [latex];
+  }
+  return [];
+};
+
 function MfgPanel({language, text}) {
   const [config, setConfig] = useState(null);
   const [configError, setConfigError] = useState('');
@@ -997,12 +1007,12 @@ function MfgPanel({language, text}) {
                   </Accordion.Body>
                 </Accordion.Item>
               )}
-              {config.equations?.latex?.length > 0 && (
+              {normalizeLatexEntries(config.equations?.latex).length > 0 && (
                 <Accordion.Item eventKey="model-equations">
                   <Accordion.Header>{config.equations.title || text.equations}</Accordion.Header>
                   <Accordion.Body>
                     <div style={{overflowX: 'auto'}}>
-                      {config.equations.latex.map((eq, idx) => (
+                      {normalizeLatexEntries(config.equations?.latex).map((eq, idx) => (
                         <div key={idx} className="mb-2"><BlockMath math={eq} /></div>
                       ))}
                     </div>
@@ -1014,12 +1024,14 @@ function MfgPanel({language, text}) {
                   </Accordion.Body>
                 </Accordion.Item>
               )}
-              {config.initial_conditions?.latex?.length > 0 && (
+              {normalizeLatexEntries(config.initial_conditions?.latex).length > 0 && (
                 <Accordion.Item eventKey="model-initial">
-                  <Accordion.Header>{config.initial_conditions.title || (language === 'en' ? 'Initial conditions' : 'Начальные условия')}</Accordion.Header>
+                  <Accordion.Header>
+                    <MathText text={config.initial_conditions.title || (language === 'en' ? 'Initial conditions' : 'Начальные условия')} />
+                  </Accordion.Header>
                   <Accordion.Body>
                     <div style={{overflowX: 'auto'}}>
-                      {config.initial_conditions.latex.map((eq, idx) => (
+                      {normalizeLatexEntries(config.initial_conditions?.latex).map((eq, idx) => (
                         <div key={idx} className="mb-2"><BlockMath math={eq} /></div>
                       ))}
                     </div>

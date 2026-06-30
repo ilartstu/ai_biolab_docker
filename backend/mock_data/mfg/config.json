@@ -3,7 +3,7 @@
     "id": "mfg",
     "title": "Модель среднего поля MFG-SEIR-HCD",
     "short_description": "Прямая эпидемиологическая задача среднего поля как задача оптимального управления.",
-    "description": "Прямая эпидемиологическая задача среднего поля представлена в виде задачи оптимального управления — минимизации функционала $J$. Состояния агентов определяются группами $S, E, I, R, H, C, D$ (восприимчивые, контактные, инфицированные, выздоровевшие, госпитализированные, в реанимации, умершие). Плотность распределения $m_i(t,x)$ задана на временном горизонте $[0,T]$ и пространстве состояний $[0,1]$: значение $x=0$ — агент склонен соблюдать ограничения, $x=1$ — нет. Управляющая функция $v(t,x)$ отвечает за скорость изменения состояний. Эпидемия описывается системой ДУЧП (см. блок «Уравнения»). Подробнее см.: V. Petrakova, O. Krivorotko, «Sensitivity of MFG SEIR-HCD epidemiological model», Lobachevskii J. Math. 44(7), 2856–2869, 2023."
+    "description": "Прямая эпидемиологическая задача среднего поля представлена в виде задачи оптимального управления — минимизации функционала $J$. Состояния агентов определяются группами $S, E, I, R, H, C, D$ (восприимчивые, контактные, инфицированные, выздоровевшие, госпитализированные, в реанимации, умершие). Плотность распределения $m_i(t,x)$ $(i \\in \\{S, E, I, R, H, C, D\\})$ задана на временном горизонте $[0,T]$ и пространстве состояний $[0,1]$: значение $x=0$ — агент склонен соблюдать ограничения, $x=1$ — нет. Управляющая функция $v(t,x)$ отвечает за скорость изменения состояний. Эпидемия описывается системой ДУЧП (см. блок «Уравнения»). Подробнее см.: V. Petrakova, O. Krivorotko, «Sensitivity of MFG SEIR-HCD epidemiological model», Lobachevskii J. Math. 44(7), 2856–2869, 2023."
   },
   "functional": {
     "title": "Функционал стоимости (минимизируется)",
@@ -13,18 +13,12 @@
   "equations": {
     "title": "Система уравнений MFG-SEIR-HCD (7 ДУЧП)",
     "latex": [
-      "\\frac{\\partial m_S}{\\partial t} + \\frac{\\partial (m_S v)}{\\partial x} - \\frac{\\sigma^2}{2}\\frac{\\partial^2 m_S}{\\partial x^2} + \\frac{5-a}{5}(\\alpha_I m_S m_I + \\alpha_E m_S m_E) - \\omega_{imm} m_R = 0",
-      "\\frac{\\partial m_E}{\\partial t} + \\frac{\\partial (m_E v)}{\\partial x} - \\frac{\\sigma^2}{2}\\frac{\\partial^2 m_E}{\\partial x^2} - \\frac{5-a}{5}(\\alpha_I m_S m_I + \\alpha_E m_S m_E) + \\omega_{inc} m_E = 0",
-      "\\frac{\\partial m_I}{\\partial t} + \\frac{\\partial (m_I v)}{\\partial x} - \\frac{\\sigma^2}{2}\\frac{\\partial^2 m_I}{\\partial x^2} - \\omega_{inc} m_E + \\omega_{inf} m_I = 0",
-      "\\frac{\\partial m_R}{\\partial t} + \\frac{\\partial (m_R v)}{\\partial x} - \\frac{\\sigma^2}{2}\\frac{\\partial^2 m_R}{\\partial x^2} - \\beta\\,\\omega_{inf} m_I - (1-\\varepsilon_{HC})\\,\\omega_{hosp} m_H + \\omega_{imm} m_R = 0",
-      "\\frac{\\partial m_H}{\\partial t} + \\frac{\\partial (m_H v)}{\\partial x} - \\frac{\\sigma^2}{2}\\frac{\\partial^2 m_H}{\\partial x^2} - (1-\\beta)\\,\\omega_{inf} m_I - (1-\\mu)\\,\\omega_{crit} m_C\\,\\omega_{hosp} m_H = 0",
-      "\\frac{\\partial m_C}{\\partial t} + \\frac{\\partial (m_C v)}{\\partial x} - \\frac{\\sigma^2}{2}\\frac{\\partial^2 m_C}{\\partial x^2} - \\varepsilon_{HC}\\,\\omega_{hosp} m_H + \\omega_{crit} m_C = 0",
-      "\\frac{\\partial m_D}{\\partial t} + \\frac{\\partial (m_D v)}{\\partial x} - \\frac{\\sigma^2}{2}\\frac{\\partial^2 m_D}{\\partial x^2} - \\mu\\,\\omega_{crit} m_C = 0"
+      "\\begin{cases} \\frac{\\partial m_S}{\\partial t} + \\frac{\\partial (m_S v)}{\\partial x} - \\frac{\\sigma^2}{2}\\frac{\\partial^2 m_S}{\\partial x^2} + \\frac{5-a}{5}(\\alpha_I m_S m_I + \\alpha_E m_S m_E) - \\omega_{imm} m_R = 0, \\\\ \\frac{\\partial m_E}{\\partial t} + \\frac{\\partial (m_E v)}{\\partial x} - \\frac{\\sigma^2}{2}\\frac{\\partial^2 m_E}{\\partial x^2} - \\frac{5-a}{5}(\\alpha_I m_S m_I + \\alpha_E m_S m_E) + \\omega_{inc} m_E = 0, \\\\ \\frac{\\partial m_I}{\\partial t} + \\frac{\\partial (m_I v)}{\\partial x} - \\frac{\\sigma^2}{2}\\frac{\\partial^2 m_I}{\\partial x^2} - \\omega_{inc} m_E + \\omega_{inf} m_I = 0, \\\\ \\frac{\\partial m_R}{\\partial t} + \\frac{\\partial (m_R v)}{\\partial x} - \\frac{\\sigma^2}{2}\\frac{\\partial^2 m_R}{\\partial x^2} - \\beta\\,\\omega_{inf} m_I - (1-\\varepsilon_{HC})\\,\\omega_{hosp} m_H + \\omega_{imm} m_R = 0, \\\\ \\frac{\\partial m_H}{\\partial t} + \\frac{\\partial (m_H v)}{\\partial x} - \\frac{\\sigma^2}{2}\\frac{\\partial^2 m_H}{\\partial x^2} - (1-\\beta)\\,\\omega_{inf} m_I - (1-\\mu)\\,\\omega_{crit} m_C\\,\\omega_{hosp} m_H = 0, \\\\ \\frac{\\partial m_C}{\\partial t} + \\frac{\\partial (m_C v)}{\\partial x} - \\frac{\\sigma^2}{2}\\frac{\\partial^2 m_C}{\\partial x^2} - \\varepsilon_{HC}\\,\\omega_{hosp} m_H + \\omega_{crit} m_C = 0, \\\\ \\frac{\\partial m_D}{\\partial t} + \\frac{\\partial (m_D v)}{\\partial x} - \\frac{\\sigma^2}{2}\\frac{\\partial^2 m_D}{\\partial x^2} - \\mu\\,\\omega_{crit} m_C = 0 \\end{cases}"
     ],
     "note": "Каждое уравнение описывает динамику плотности $m_i(t,x)$ одной из 7 эпидемиологических групп. Граничные условия: $\\partial m_i/\\partial x = 0$ при $x=0, x=1$. Начальные распределения $m_i(0,x)$ задаются гауссовыми с параметрами $\\sigma_i = 0.02$, $x_i^c = 0.5$, $\\sigma_i^c = 0.2$."
   },
   "initial_conditions": {
-    "title": "Начальные распределения m_i(0,x)",
+    "title": "Начальные распределения",
     "latex": [
       "m_{0i}(x) = \\frac{A_i}{B_i}\\Big(\\exp\\Big(-\\frac{(x - x_i^c)^2}{2(\\sigma_i^c)^2}\\Big)/\\sigma_i^c\\sqrt{2\\pi}\\Big) + a_i x^2 + b_i (1-x)^2"
     ],
