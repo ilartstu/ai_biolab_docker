@@ -5,21 +5,15 @@ from datetime import datetime
 COVID_ML_DATA_FILE = "covid_ml_data_Spb.csv"
 GENERATOR_MODEL_NAME = "generator_full_model.h5"
 DISCRIMINATOR_MODEL_NAME = "discriminator_full_model.h5"
-
 N_TRAJECTORIES = 100
 NOISE_DIM = 100
-
 NSAMPLE = 14
 NSAMPLE_FORWARD = 5
-
 START_TRAIN = datetime(2020, 9, 15)
 SPLIT_DATE = datetime(2022, 7, 1)
-
 SMA_WINDOW = 7
 TARGETS = ["new_diagnoses_tsa"]
-RAW_INDICATOR_BY_TARGET = {
-    "new_diagnoses_tsa": "new_diagnoses",
-}
+RAW_INDICATOR_BY_TARGET = {"new_diagnoses_tsa": "new_diagnoses"}
 
 SELECTED_FEATURES = [
     "new_diagnoses_ema",
@@ -43,7 +37,6 @@ SELECTED_FEATURES = [
     "IgG_ema",
     "yandex_index",
 ]
-
 FEATURES_TO_NORMALIZE = [
     "new_diagnoses_ema",
     "new_cases_world_minus_china",
@@ -73,4 +66,8 @@ def target_vars_flatten(
     sma_window: int = SMA_WINDOW,
     nsample_forward: int = NSAMPLE_FORWARD,
 ) -> list[str]:
-    return [item for group in target_vars(targets, sma_window, nsample_forward) for item in group]
+    return [
+        item
+        for group in target_vars(targets, sma_window, nsample_forward)
+        for item in group
+    ]

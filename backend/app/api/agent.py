@@ -41,7 +41,11 @@ async def table(run_id: str, request: Request):
     result = orchestrator.result(run_id, request)
     return {
         "run_id": run_id,
-        "columns": [{"key": key, "label": key} for key in ["date", "cum_infections", "new_infections", "cum_deaths", "new_deaths"]],
+        "columns": [{"key": key, "label": key} for key in [
+            "date", "cum_infections", "cum_critical", "cum_recoveries",
+            "cum_deaths", "new_infections", "new_critical",
+            "new_recoveries", "new_deaths"
+        ]],
         "rows": result.get("series", []),
         "pagination": None,
     }

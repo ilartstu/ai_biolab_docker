@@ -22,28 +22,18 @@ import FooterEn from '../Components/Footer_En';
 import {API_BASE_URL, apiErrorMessage, modelingApi} from '../api/modelingApi';
 import {useAsyncModelRun} from './useAsyncModelRun';
 import {TimeSeriesChart, toTimestamp} from './components/TimeSeriesChart';
-import {BlockMath, InlineMath} from 'react-katex';
-import 'katex/dist/katex.min.css';
 import './ModelingHub.css';
-
-// Хелпер: рендерит строку с inline-математикой, обрамлённой $...$
-// Пример: "Параметры $\\alpha_E$, $\\omega_{imm}$ описывают…" → нормально отрендерится
-function MathText({text}) {
-  if (!text) return null;
-  const parts = String(text).split('$');
-  return (
-    <>
-      {parts.map((part, i) =>
-        i % 2 === 0
-          ? <span key={i}>{part}</span>
-          : <InlineMath key={i} math={part} />
-      )}
-    </>
-  );
-}
 
 const ACTUAL_SERIES_COLOR = '#2f5bea';
 const FORECAST_COLORS = ['#e5533d', '#198754', '#6f42c1'];
+function addDaysIso(startDate, days) {
+  if (!startDate) return '';
+  const date = new Date(`${startDate}T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) return '';
+  date.setUTCDate(date.getUTCDate() + Number(days || 0));
+  return date.toISOString().slice(0, 10);
+}
+
 const COMPARTMENT_COLORS = {
   S: '#6c757d',
   E: '#fd7e14',
@@ -103,14 +93,6 @@ const TEXT = {
     remove: 'Удалить',
     waiting: 'Ожидание запуска',
     reproductionIndex: 'Репродуктивное число R₀',
-    aboutModel: 'О модели',
-    equations: 'Уравнения модели',
-    modelParameters: 'Параметры модели',
-    selectedStrategy: 'Выбранная стратегия',
-    selectedPeriod: 'Период',
-    coefficient: 'Коэффициент',
-    expandDescription: 'Подробнее',
-    collapseDescription: 'Свернуть',
   },
   en: {
     title: 'Epidemic spread modeling',
@@ -160,14 +142,6 @@ const TEXT = {
     remove: 'Remove',
     waiting: 'Waiting to start',
     reproductionIndex: 'Reproduction number R₀',
-    aboutModel: 'About the model',
-    equations: 'Model equations',
-    modelParameters: 'Model parameters',
-    selectedStrategy: 'Selected strategy',
-    selectedPeriod: 'Period',
-    coefficient: 'Coefficient',
-    expandDescription: 'Show more',
-    collapseDescription: 'Collapse',
   },
 };
 
@@ -394,6 +368,9 @@ function AgentPanel({language, text}) {
     ];
   }, [language, runController.result]);
 
+  const interventionMinDate = config?.model?.start_day || '2020-03-12';
+  const interventionMaxDate = addDaysIso(interventionMinDate, form.forecast_days);
+
   if (!config && !configError) {
     return <ConfigLoading text={text.loadingConfig} />;
   }
@@ -424,7 +401,7 @@ function AgentPanel({language, text}) {
               <Col md={6} lg={4}>
                 <Form.Group>
                   <Form.Label>{text.initiallyInfected}</Form.Label>
-                  <Form.Control type="number" name="pop_infected" value={form.pop_infected} onChange={updateField} min={10} max={5000} required />
+                  <Form.Control type="number" name="pop_infected" value={form.pop_infected} onChange={updateField} min={10} max={Math.min(5000, Number(form.pop_size) || 5000)} required />
                 </Form.Group>
               </Col>
               <Col md={6} lg={4}>
@@ -449,6 +426,8 @@ function AgentPanel({language, text}) {
                   <Form.Control
                     type="date"
                     value={intervention.date || ''}
+                    min={interventionMinDate}
+                    max={interventionMaxDate}
                     onChange={(event) => updateIntervention(index, 'date', event.target.value)}
                   />
                 </Col>
@@ -470,7 +449,7 @@ function AgentPanel({language, text}) {
                 </Col>
               </Row>
             ))}
-            <Button variant="outline-secondary" size="sm" onClick={addIntervention} className="mt-1">
+            <Button variant="outline-secondary" size="sm" onClick={addIntervention} className="mt-1" disabled={interventions.length >= 50}>
               {text.addIntervention}
             </Button>
 
@@ -514,9 +493,13 @@ function AgentPanel({language, text}) {
                   columns={[
                     {key: 'date', label: text.date},
                     {key: 'cum_infections', label: language === 'en' ? 'Cumulative infections' : 'Накопленные заражения'},
-                    {key: 'new_infections', label: language === 'en' ? 'New infections' : 'Новые заражения'},
+                    {key: 'cum_critical', label: language === 'en' ? 'Cumulative critical' : 'Накопленные критические'},
                     {key: 'cum_recoveries', label: language === 'en' ? 'Cumulative recoveries' : 'Накопленные выздоровления'},
                     {key: 'cum_deaths', label: language === 'en' ? 'Cumulative deaths' : 'Накопленные смерти'},
+                    {key: 'new_infections', label: language === 'en' ? 'New infections' : 'Новые заражения'},
+                    {key: 'new_critical', label: language === 'en' ? 'New critical' : 'Новые критические'},
+                    {key: 'new_recoveries', label: language === 'en' ? 'New recoveries' : 'Новые выздоровления'},
+                    {key: 'new_deaths', label: language === 'en' ? 'New deaths' : 'Новые смерти'},
                   ]}
                 />
               </Accordion.Body>
@@ -623,7 +606,7 @@ function MlForecastPanel({language, text}) {
       .filter(([x, y]) => x !== null && y !== null);
     const lastHistoryPoint = historyPoints.length ? historyPoints[historyPoints.length - 1] : null;
 
-    if (result.history?.length) {
+    if (historyPoints.length) {
       chartSeries.push({
         name: text.actual,
         color: ACTUAL_SERIES_COLOR,
@@ -951,10 +934,6 @@ function MfgPanel({language, text}) {
     }));
   }, [periodId, periods, result, selectedCompartments]);
 
-  // Найти выбранные стратегию и период для отображения деталей
-  const selectedStrategy = (config?.strategies || []).find((s) => s.id === strategyId);
-  const selectedPeriod = periods.find((p) => p.id === periodId);
-
   if (!config && !configError) {
     return <ConfigLoading text={text.loadingConfig} />;
   }
@@ -962,168 +941,6 @@ function MfgPanel({language, text}) {
   return (
     <div>
       {configError && <Alert variant="danger">{configError}</Alert>}
-
-      {/* О модели — название + краткое описание + Accordion с формулами и таблицами */}
-      {config?.model && (
-        <Card className="model-info-card mb-3">
-          <Card.Body>
-            <Card.Title>{config.model.title || text.aboutModel}</Card.Title>
-            {config.model.short_description && (
-              <div className="text-muted mb-3">{config.model.short_description}</div>
-            )}
-            <Accordion>
-              {config.model.description && (
-                <Accordion.Item eventKey="model-description">
-                  <Accordion.Header>{text.aboutModel}</Accordion.Header>
-                  <Accordion.Body>
-                    <p style={{textAlign: 'justify', whiteSpace: 'pre-line'}}>
-                      <MathText text={config.model.description} />
-                    </p>
-                  </Accordion.Body>
-                </Accordion.Item>
-              )}
-              {config.functional?.latex && (
-                <Accordion.Item eventKey="model-functional">
-                  <Accordion.Header>{config.functional.title || (language === 'en' ? 'Cost functional' : 'Функционал стоимости')}</Accordion.Header>
-                  <Accordion.Body>
-                    <div className="mb-3" style={{overflowX: 'auto'}}>
-                      <BlockMath math={config.functional.latex} />
-                    </div>
-                    {config.functional.note && (
-                      <div className="small text-muted">
-                        <MathText text={config.functional.note} />
-                      </div>
-                    )}
-                  </Accordion.Body>
-                </Accordion.Item>
-              )}
-              {config.equations?.latex?.length > 0 && (
-                <Accordion.Item eventKey="model-equations">
-                  <Accordion.Header>{config.equations.title || text.equations}</Accordion.Header>
-                  <Accordion.Body>
-                    <div style={{overflowX: 'auto'}}>
-                      {config.equations.latex.map((eq, idx) => (
-                        <div key={idx} className="mb-2"><BlockMath math={eq} /></div>
-                      ))}
-                    </div>
-                    {config.equations.note && (
-                      <div className="small text-muted mt-2">
-                        <MathText text={config.equations.note} />
-                      </div>
-                    )}
-                  </Accordion.Body>
-                </Accordion.Item>
-              )}
-              {config.initial_conditions?.latex?.length > 0 && (
-                <Accordion.Item eventKey="model-initial">
-                  <Accordion.Header>{config.initial_conditions.title || (language === 'en' ? 'Initial conditions' : 'Начальные условия')}</Accordion.Header>
-                  <Accordion.Body>
-                    <div style={{overflowX: 'auto'}}>
-                      {config.initial_conditions.latex.map((eq, idx) => (
-                        <div key={idx} className="mb-2"><BlockMath math={eq} /></div>
-                      ))}
-                    </div>
-                    {config.initial_conditions.note && (
-                      <div className="small text-muted mt-2">
-                        <MathText text={config.initial_conditions.note} />
-                      </div>
-                    )}
-                  </Accordion.Body>
-                </Accordion.Item>
-              )}
-              {config.parameters_info?.items?.length > 0 && (
-                <Accordion.Item eventKey="model-parameters-info">
-                  <Accordion.Header>{config.parameters_info.title || text.modelParameters}</Accordion.Header>
-                  <Accordion.Body>
-                    <Table size="sm" striped bordered>
-                      <thead>
-                        <tr>
-                          <th style={{width: '20%'}}>{language === 'en' ? 'Symbol' : 'Обозначение'}</th>
-                          <th style={{width: '28%'}}>{language === 'en' ? 'Name' : 'Название'}</th>
-                          <th>{language === 'en' ? 'Description' : 'Описание'}</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {config.parameters_info.items.map((item, idx) => (
-                          <tr key={idx}>
-                            <td><InlineMath math={item.symbol} /></td>
-                            <td>{item.name}</td>
-                            <td><MathText text={item.description} /></td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </Table>
-                  </Accordion.Body>
-                </Accordion.Item>
-              )}
-              {config.metrics?.length > 0 && (
-                <Accordion.Item eventKey="model-compartments-info">
-                  <Accordion.Header>{language === 'en' ? 'Compartments S/E/I/R/H/C/D' : 'Состояния S/E/I/R/H/C/D'}</Accordion.Header>
-                  <Accordion.Body>
-                    <Table size="sm" striped bordered>
-                      <thead>
-                        <tr>
-                          <th style={{width: '10%'}}>ID</th>
-                          <th style={{width: '32%'}}>{language === 'en' ? 'Full name' : 'Расшифровка'}</th>
-                          <th>{language === 'en' ? 'Description' : 'Описание'}</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {config.metrics.map((metric) => (
-                          <tr key={metric.id}>
-                            <td><strong style={{color: metric.color || '#000', fontSize: '1.1em'}}>{metric.id}</strong></td>
-                            <td>{metric.full_name || metric.label}</td>
-                            <td><MathText text={metric.description} /></td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </Table>
-                  </Accordion.Body>
-                </Accordion.Item>
-              )}
-              {config.strategies?.length > 0 && (
-                <Accordion.Item eventKey="model-strategies-info">
-                  <Accordion.Header>{language === 'en' ? 'Strategies and coefficients of J' : 'Стратегии и коэффициенты функционала'}</Accordion.Header>
-                  <Accordion.Body>
-                    <Table size="sm" striped bordered responsive>
-                      <thead>
-                        <tr>
-                          <th>{text.strategy}</th>
-                          <th><InlineMath math="a_1" /></th>
-                          <th><InlineMath math="a_2" /></th>
-                          <th><InlineMath math="a_3" /></th>
-                          <th><InlineMath math="a_4" /></th>
-                          <th><InlineMath math="a_5" /></th>
-                          <th><InlineMath math="a_6" /></th>
-                          <th style={{minWidth: '200px'}}>{language === 'en' ? 'Description' : 'Описание'}</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {config.strategies.map((strategy) => (
-                          <tr key={strategy.id}>
-                            <td>
-                              <strong>{strategy.name}</strong>
-                              {strategy.source_name && <div className="small text-muted">{strategy.source_name}</div>}
-                            </td>
-                            <td><code>{strategy.coefficients?.a_1 ?? '—'}</code></td>
-                            <td><code>{strategy.coefficients?.a_2 ?? '—'}</code></td>
-                            <td><code>{strategy.coefficients?.a_3 ?? '—'}</code></td>
-                            <td><code>{strategy.coefficients?.a_4 ?? '—'}</code></td>
-                            <td><code>{strategy.coefficients?.a_5 ?? '—'}</code></td>
-                            <td><code>{strategy.coefficients?.a_6 ?? '—'}</code></td>
-                            <td><MathText text={strategy.description} /></td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </Table>
-                  </Accordion.Body>
-                </Accordion.Item>
-              )}
-            </Accordion>
-          </Card.Body>
-        </Card>
-      )}
-
       <Card className="model-control-card">
         <Card.Body>
           <Form onSubmit={loadScenario}>
@@ -1154,65 +971,6 @@ function MfgPanel({language, text}) {
               </Col>
             </Row>
 
-            {/* Детали выбранной стратегии и периода — показываются под селектами */}
-            {(selectedStrategy || selectedPeriod) && (
-              <Row className="g-3 mt-2">
-                {selectedPeriod && (
-                  <Col md={6}>
-                    <div className="p-3" style={{background: '#f8f9fa', borderRadius: '6px', borderLeft: '3px solid #0d6efd'}}>
-                      <div className="small text-muted">{text.selectedPeriod}</div>
-                      <div><strong>{selectedPeriod.name}</strong></div>
-                      {selectedPeriod.start_date && (
-                        <div className="small">{selectedPeriod.start_date} — {selectedPeriod.end_date}</div>
-                      )}
-                      {selectedPeriod.description && (
-                        <div className="small text-muted mt-1">
-                          <MathText text={selectedPeriod.description} />
-                        </div>
-                      )}
-                      {selectedPeriod.initial_values && (
-                        <div className="mt-2">
-                          <div className="small fw-bold">{language === 'en' ? 'Initial values (people)' : 'Начальные значения (чел.)'}:</div>
-                          <div className="small d-flex flex-wrap" style={{gap: '8px 14px'}}>
-                            {Object.entries(selectedPeriod.initial_values).map(([key, value]) => (
-                              <span key={key}>
-                                <InlineMath math={key} /> = <strong>{value.toLocaleString('ru-RU')}</strong>
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </Col>
-                )}
-                {selectedStrategy && (
-                  <Col md={6}>
-                    <div className="p-3" style={{background: '#f8f9fa', borderRadius: '6px', borderLeft: '3px solid #198754'}}>
-                      <div className="small text-muted">{text.selectedStrategy}</div>
-                      <div><strong>{selectedStrategy.name}</strong></div>
-                      {selectedStrategy.description && (
-                        <div className="small text-muted mt-1">
-                          <MathText text={selectedStrategy.description} />
-                        </div>
-                      )}
-                      {selectedStrategy.coefficients && (
-                        <div className="mt-2">
-                          <div className="small fw-bold">{selectedStrategy.coefficient_label || (language === 'en' ? 'Coefficients of J' : 'Коэффициенты функционала J')}:</div>
-                          <div className="small d-flex flex-wrap" style={{gap: '8px 14px'}}>
-                            {Object.entries(selectedStrategy.coefficients).map(([key, value]) => (
-                              <span key={key}>
-                                <InlineMath math={key} /> = <strong>{value}</strong>
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </Col>
-                )}
-              </Row>
-            )}
-
             <div className="model-section-heading mt-4 mb-2">{text.compartments}</div>
             <div className="model-checkbox-grid">
               {(config?.metrics || []).map((metric) => (
@@ -1220,19 +978,11 @@ function MfgPanel({language, text}) {
                   key={metric.id}
                   type="checkbox"
                   id={`metric-${metric.id}`}
-                  label={
-                    <span title={metric.description || ''} style={{cursor: 'help'}}>
-                      <strong style={{color: metric.color || '#000'}}>{metric.id}</strong>
-                      {metric.label && metric.label !== metric.id && <span className="text-muted"> — {metric.label.replace(/^[A-Z] — /, '')}</span>}
-                    </span>
-                  }
+                  label={metric.label || metric.id}
                   checked={selectedCompartments.includes(metric.id)}
                   onChange={() => toggleCompartment(metric.id)}
                 />
               ))}
-            </div>
-            <div className="small text-muted mt-1">
-              {language === 'en' ? 'Hover over the state name to see its description.' : 'Наведите курсор на букву состояния — увидите расшифровку.'}
             </div>
 
             <Button type="submit" className="mt-4" disabled={loading || !periodId || !strategyId}>
@@ -1248,11 +998,45 @@ function MfgPanel({language, text}) {
         <div className="mt-4">
           <TimeSeriesChart
             title={text.epidemicStates}
-            subtitle={`${selectedPeriod?.name || periodId} · ${selectedStrategy?.name || strategyId}`}
+            subtitle={`${result.scenario?.period_id || periodId} · ${result.scenario?.strategy_id || strategyId}`}
             series={chartSeries}
             yAxisTitle={language === 'en' ? 'People' : 'Человек'}
             language={language}
           />
+
+          <Row className="g-4 mt-1">
+            <Col lg={6}>
+              <Card className="h-100 model-info-card">
+                <Card.Body>
+                  <Card.Title>{text.scenario}</Card.Title>
+                  <div className="small text-muted mb-3">{result.model_description}</div>
+                  <dl className="model-description-list">
+                    <dt>{text.region}</dt><dd>{result.scenario?.region_id}</dd>
+                    <dt>{text.period}</dt><dd>{result.scenario?.period_id}</dd>
+                    <dt>{text.strategy}</dt><dd>{result.scenario?.strategy_id}</dd>
+                  </dl>
+                </Card.Body>
+              </Card>
+            </Col>
+            <Col lg={6}>
+              <Card className="h-100 model-info-card">
+                <Card.Body>
+                  <Card.Title>{text.parameters}</Card.Title>
+                  {result.parameters?.length ? (
+                    <DataTable
+                      language={language}
+                      rows={result.parameters}
+                      columns={[
+                        {key: 'name', label: language === 'en' ? 'Name' : 'Название'},
+                        {key: 'value', label: language === 'en' ? 'Value' : 'Значение'},
+                        {key: 'description', label: language === 'en' ? 'Description' : 'Описание'},
+                      ]}
+                    />
+                  ) : <div className="text-muted">{text.noData}</div>}
+                </Card.Body>
+              </Card>
+            </Col>
+          </Row>
 
           <Accordion className="mt-4">
             <Accordion.Item eventKey="mfg-table">

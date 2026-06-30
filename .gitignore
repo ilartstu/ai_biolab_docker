@@ -14,4 +14,3 @@ dist/
 *.egg-info/
 .pytest_cache/
 .coverage
-backend/generated/cgan/*.csv

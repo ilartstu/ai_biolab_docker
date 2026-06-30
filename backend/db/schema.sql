@@ -10,6 +10,20 @@ CREATE TABLE IF NOT EXISTS mock_results (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS agent_run_results (
+    run_id TEXT PRIMARY KEY,
+    request_hash TEXT NOT NULL UNIQUE,
+    region_id TEXT NOT NULL,
+    request_json JSONB NOT NULL,
+    result_json JSONB NOT NULL,
+    model_version TEXT NOT NULL,
+    rand_seed INTEGER NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_agent_run_results_lookup
+ON agent_run_results(region_id, created_at DESC);
+
 CREATE TABLE IF NOT EXISTS ml_forecast_model_results (
     model_id TEXT PRIMARY KEY,
     data_json JSONB NOT NULL,
@@ -82,62 +96,3 @@ ON imported_files(source_file);
 
 CREATE INDEX IF NOT EXISTS idx_imported_files_target
 ON imported_files(target_id);
-
--- ─────────────────────────────────────────────────────────────────────
--- Reference data tables (added from ai_biolab_docker / main branch)
--- ─────────────────────────────────────────────────────────────────────
-
--- Справочник 75 регионов РФ (slug, name, district, center, population, area, density).
--- Источник: ORIGINAL/new-covid-main/src/Covid.js → backend/scripts/regions_data.py
-CREATE TABLE IF NOT EXISTS regions (
-    id SERIAL PRIMARY KEY,
-    slug VARCHAR(64) UNIQUE NOT NULL,
-    name VARCHAR(255) NOT NULL,
-    district VARCHAR(255),
-    center VARCHAR(255),
-    population INTEGER,
-    area VARCHAR(64),
-    density VARCHAR(64),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE INDEX IF NOT EXISTS idx_regions_slug ON regions(slug);
-CREATE INDEX IF NOT EXISTS idx_regions_district ON regions(district);
-
--- Дневной временной ряд COVID-эпидемиологии по регионам.
--- Источник: data/regions/{Novosibirsk,Omsk,Altai}.csv
--- Базовые колонки одинаковые для всех регионов; в `extra` (jsonb)
--- сохраняются регион-специфичные поля (для НСО: hospitalised, n_critical,
--- ventilation, 1vac, 2vac, yandex_index, positive_percent и др.).
-CREATE TABLE IF NOT EXISTS region_timeseries (
-    id SERIAL PRIMARY KEY,
-    region_slug VARCHAR(64) NOT NULL,
-    date DATE NOT NULL,
-    new_diagnoses INTEGER,
-    cum_diagnoses INTEGER,
-    new_recoveries INTEGER,
-    cum_recoveries INTEGER,
-    new_deaths INTEGER,
-    cum_deaths INTEGER,
-    new_tests INTEGER,
-    cum_tests INTEGER,
-    extra JSONB,
-    CONSTRAINT uq_region_timeseries_region_date UNIQUE (region_slug, date)
-);
-
-CREATE INDEX IF NOT EXISTS idx_region_timeseries_lookup
-    ON region_timeseries(region_slug, date);
-
--- Калибровочные параметры SEIR-модели (результат Optuna-калибровки).
--- Источник: data/seir/params_08_04_2022.json
--- Один файл = одна запись с label='08_04_2022', region_slug='novosibirsk'.
-CREATE TABLE IF NOT EXISTS seir_params (
-    id SERIAL PRIMARY KEY,
-    region_slug VARCHAR(64) NOT NULL,
-    label VARCHAR(64) NOT NULL,
-    params JSONB NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    CONSTRAINT uq_seir_params_region_label UNIQUE (region_slug, label)
-);
-
-CREATE INDEX IF NOT EXISTS idx_seir_params_region ON seir_params(region_slug);

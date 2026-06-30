@@ -1,17 +1,27 @@
 from __future__ import annotations
+
 import asyncio
 from copy import deepcopy
 from datetime import date, timedelta
 from pathlib import Path
 from typing import Any
+
 from app.core import db
 from app.core.settings import settings
+from app.modeling.agent import CovasimAgentRunner, agent_request_hash
 from app.modeling.cgan import CGANForecaster
 from app.providers.base import DataProvider, ProgressCallback
+
 
 class PostgresDataProvider(DataProvider):
     def __init__(self) -> None:
         self._cgan_forecaster: CGANForecaster | None = None
+        self._agent_runner = CovasimAgentRunner(
+            start_day=settings.agent_start_day,
+            rand_seed=settings.agent_rand_seed,
+            model_version=settings.agent_model_version,
+            max_interventions=settings.agent_max_interventions,
+        )
 
     def _get_cgan_forecaster(self) -> CGANForecaster:
         if self._cgan_forecaster is None:
@@ -26,35 +36,79 @@ class PostgresDataProvider(DataProvider):
         with db.connect() as conn:
             return db.get_config(conn, "agent")
 
-    async def run_agent(self, payload: dict[str, Any], run_id: str, progress_callback: ProgressCallback | None = None) -> dict[str, Any]:
-        await asyncio.sleep(settings.mock_sleep_seconds)
+    def _allowed_agent_regions(self) -> set[str]:
+        config = self.agent_config()
+        return {
+            str(item["id"])
+            for item in config.get("regions", {}).get("items", [])
+            if item.get("available", True)
+        }
+
+    async def run_agent(
+        self,
+        payload: dict[str, Any],
+        run_id: str,
+        progress_callback: ProgressCallback | None = None,
+    ) -> dict[str, Any]:
+        allowed_regions = self._allowed_agent_regions()
+        self._agent_runner.validate_payload(payload, allowed_regions)
+        canonical_request = self._agent_runner.canonicalize(payload)
+        request_hash = agent_request_hash(canonical_request)
+
+        if progress_callback:
+            progress_callback(14, "Поиск идентичного расчёта в PostgreSQL.")
+
         with db.connect() as conn:
-            raw = db.get_mock_result(conn, "agent_result")
-        result = deepcopy(raw)
-        result["run_id"] = run_id
-        result["status"] = "completed"
-        result["params"] = payload
-        requested_days = int(payload.get("sim_params", {}).get("forecast_days", len(result.get("series", [])) - 1))
-        result["series"] = result.get("series", [])[: requested_days + 1]
-        result["interventions"] = [
-            {"date": item["date"], "beta_change": item["beta_change"], "label": f"Интервенция {idx + 1}"}
-            for idx, item in enumerate(payload.get("interventions", []))
-        ]
-        if result["series"]:
-            last = result["series"][-1]
-            result["summary"] = {
-                "final_cum_infections": last.get("cum_infections"),
-                "final_cum_critical": last.get("cum_critical"),
-                "final_cum_recoveries": last.get("cum_recoveries"),
-                "final_cum_deaths": last.get("cum_deaths"),
-            }
+            cached = db.get_agent_run_result_by_hash(conn, request_hash)
+
+        if cached:
+            result = deepcopy(cached["result_json"])
+            result["source_run_id"] = cached["run_id"]
+            result["run_id"] = run_id
+            result["params"] = deepcopy(payload)
+            result["status"] = "completed"
+            result["cache_status"] = "hit"
+            result["request_hash"] = request_hash
+            if progress_callback:
+                progress_callback(88, "Найден готовый идентичный расчёт в PostgreSQL.")
+            return result
+
+        result = await asyncio.to_thread(
+            self._agent_runner.predict,
+            payload=payload,
+            run_id=run_id,
+            allowed_region_ids=allowed_regions,
+            progress_callback=progress_callback,
+        )
+        result["request_hash"] = request_hash
+
+        if progress_callback:
+            progress_callback(89, "Сохранение результата Covasim в PostgreSQL.")
+
+        with db.connect() as conn:
+            db.upsert_agent_run_result(
+                conn,
+                run_id=run_id,
+                request_hash=request_hash,
+                region_id=str(payload["region_id"]),
+                request=canonical_request,
+                result=result,
+                model_version=self._agent_runner.model_version,
+                rand_seed=self._agent_runner.rand_seed,
+            )
+            conn.commit()
         return result
 
     def ml_config(self) -> dict[str, Any]:
         with db.connect() as conn:
             return db.get_config(conn, "ml_forecast")
 
-    async def run_ml_forecast(self, payload: dict[str, Any], run_id: str, progress_callback: ProgressCallback | None = None) -> dict[str, Any]:
+    async def run_ml_forecast(
+        self,
+        payload: dict[str, Any],
+        run_id: str,
+        progress_callback: ProgressCallback | None = None,
+    ) -> dict[str, Any]:
         if progress_callback:
             progress_callback(12, "Подготовка ML-прогноза.")
 
@@ -95,12 +149,14 @@ class PostgresDataProvider(DataProvider):
                     }
                     artifacts["forecast_csv"] = cgan_artifact
                 diagnostics["cgan"] = cgan_result.get("diagnostics", {})
-                models.append({
-                    "model_id": "cgan",
-                    "model_name": "CGAN",
-                    "forecast": cgan_result["forecast"],
-                    "diagnostics": cgan_result.get("diagnostics", {}),
-                })
+                models.append(
+                    {
+                        "model_id": "cgan",
+                        "model_name": "CGAN",
+                        "forecast": cgan_result["forecast"],
+                        "diagnostics": cgan_result.get("diagnostics", {}),
+                    }
+                )
                 continue
 
             if progress_callback:
@@ -112,7 +168,13 @@ class PostgresDataProvider(DataProvider):
                 offset = int(item.pop("date_offset", item.get("horizon", 1)))
                 item["date"] = (context_date + timedelta(days=offset)).isoformat()
                 forecast.append(item)
-            models.append({"model_id": model_id, "model_name": model_id.upper(), "forecast": forecast})
+            models.append(
+                {
+                    "model_id": model_id,
+                    "model_name": model_id.upper(),
+                    "forecast": forecast,
+                }
+            )
 
         if history is None:
             await asyncio.sleep(settings.mock_sleep_seconds)
@@ -127,12 +189,19 @@ class PostgresDataProvider(DataProvider):
             "params": payload,
             "history": history,
             "models": models,
-            "comparison": {"type": "mean_lines", "model_ids": payload["model_ids"], "indicator_id": payload["indicator_id"]},
-            "chart": {"default_type": "line_with_interval", "context_days": context_days, "horizon_days": payload.get("horizon_days", 5)},
+            "comparison": {
+                "type": "mean_lines",
+                "model_ids": payload["model_ids"],
+                "indicator_id": payload["indicator_id"],
+            },
+            "chart": {
+                "default_type": "line_with_interval",
+                "context_days": context_days,
+                "horizon_days": payload.get("horizon_days", 5),
+            },
             "artifacts": artifacts,
             "diagnostics": diagnostics,
         }
-
         with db.connect() as conn:
             db.upsert_ml_forecast_run_result(
                 conn,
@@ -146,13 +215,16 @@ class PostgresDataProvider(DataProvider):
                 artifacts=artifacts,
             )
             conn.commit()
-
         return result
 
     def ml_modeling(self, region_id: str, model_id: str, indicator_id: str) -> dict[str, Any]:
         with db.connect() as conn:
             data = db.get_ml_precomputed(conn, "modeling", region_id, model_id, indicator_id)
-        data["params"] = {"region_id": region_id, "model_id": model_id, "indicator_id": indicator_id}
+        data["params"] = {
+            "region_id": region_id,
+            "model_id": model_id,
+            "indicator_id": indicator_id,
+        }
         if model_id != "seir_hcd":
             data["model_parameters"] = []
             data["reproduction_index"] = []
@@ -161,7 +233,11 @@ class PostgresDataProvider(DataProvider):
     def ml_validation(self, region_id: str, model_id: str, indicator_id: str) -> dict[str, Any]:
         with db.connect() as conn:
             data = db.get_ml_precomputed(conn, "validation", region_id, model_id, indicator_id)
-        data["params"] = {"region_id": region_id, "model_id": model_id, "indicator_id": indicator_id}
+        data["params"] = {
+            "region_id": region_id,
+            "model_id": model_id,
+            "indicator_id": indicator_id,
+        }
         if model_id != "seir_hcd":
             data["model_parameters_forecast"] = []
         return data

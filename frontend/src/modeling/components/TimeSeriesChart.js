@@ -47,10 +47,7 @@ export function TimeSeriesChart({
       align: 'left',
       style: {fontSize: '18px', fontWeight: '600'},
     },
-    subtitle: {
-      text: subtitle || '',
-      align: 'left',
-    },
+    subtitle: {text: subtitle || '', align: 'left'},
     credits: {enabled: false},
     accessibility: {enabled: false},
     xAxis: {
@@ -63,34 +60,21 @@ export function TimeSeriesChart({
       title: {text: yAxisTitle || ''},
       startOnTick: false,
       endOnTick: false,
+      min: 0,
     },
-    tooltip: {
-      shared: true,
-      xDateFormat: '%d.%m.%Y',
-      valueDecimals: 2,
-    },
-    legend: {
-      enabled: true,
-      align: 'center',
-      verticalAlign: 'bottom',
-      layout: 'horizontal',
-    },
+    tooltip: {shared: true, xDateFormat: '%d.%m.%Y', valueDecimals: 2},
+    legend: {enabled: true, align: 'center', verticalAlign: 'bottom', layout: 'horizontal'},
     plotOptions: {
       series: {
         animation: false,
         turboThreshold: 0,
         marker: {enabled: false},
-        states: {
-          inactive: {opacity: 1},
-        },
+        states: {inactive: {opacity: 1}},
       },
       arearange: {
         lineWidth: 0,
         marker: {enabled: false},
-        states: {
-          hover: {enabled: false},
-          inactive: {opacity: 1},
-        },
+        states: {hover: {enabled: false}, inactive: {opacity: 1}},
       },
     },
     exporting: {enabled: false},

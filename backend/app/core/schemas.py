@@ -1,11 +1,15 @@
 from __future__ import annotations
+
 from datetime import date
 from typing import Literal
-from pydantic import BaseModel, Field
+
+from pydantic import BaseModel, Field, model_validator
+
 
 class InterventionIn(BaseModel):
     date: date
     beta_change: float = Field(ge=0.33, le=3)
+
 
 class AgentSimParams(BaseModel):
     pop_size: int = Field(ge=1_000, le=1_000_000)
@@ -13,11 +17,26 @@ class AgentSimParams(BaseModel):
     forecast_days: int = Field(default=45, ge=1, le=365)
     beta: float | None = Field(default=0.02, ge=0.001, le=10)
 
+    @model_validator(mode="after")
+    def validate_population(self):
+        if self.pop_infected > self.pop_size:
+            raise ValueError("pop_infected не может быть больше pop_size")
+        return self
+
+
 class AgentRunRequest(BaseModel):
-    client_request_id: str
-    region_id: str
+    client_request_id: str = Field(min_length=1, max_length=200)
+    region_id: str = Field(min_length=1, max_length=100)
     sim_params: AgentSimParams
-    interventions: list[InterventionIn] = Field(default_factory=list)
+    interventions: list[InterventionIn] = Field(default_factory=list, max_length=50)
+
+    @model_validator(mode="after")
+    def validate_interventions(self):
+        dates = [item.date for item in self.interventions]
+        if len(dates) != len(set(dates)):
+            raise ValueError("Даты интервенций не должны повторяться")
+        return self
+
 
 class MlRunRequest(BaseModel):
     client_request_id: str
@@ -28,6 +47,7 @@ class MlRunRequest(BaseModel):
     mode: Literal["single_model", "compare_models"] = "single_model"
     horizon_days: int = Field(default=5, ge=1, le=5)
     context_days: int = Field(default=14, ge=14, le=14)
+
 
 class CancelRequest(BaseModel):
     reason: str | None = None

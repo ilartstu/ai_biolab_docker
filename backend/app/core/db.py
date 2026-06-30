@@ -93,6 +93,52 @@ def get_ml_precomputed(conn, result_type: str, region_id: str, model_id: str, in
         raise KeyError(f"ML precomputed result not found: {result_type}/{region_id}/{model_id}/{indicator_id}")
     return row["data_json"]
 
+
+
+def get_agent_run_result_by_hash(conn, request_hash: str) -> dict[str, Any] | None:
+    return conn.execute(
+        """
+        SELECT run_id, request_hash, region_id, request_json, result_json,
+               model_version, rand_seed, created_at
+        FROM agent_run_results
+        WHERE request_hash = %s
+        """,
+        (request_hash,),
+    ).fetchone()
+
+
+def upsert_agent_run_result(
+    conn,
+    *,
+    run_id: str,
+    request_hash: str,
+    region_id: str,
+    request: dict[str, Any],
+    result: dict[str, Any],
+    model_version: str,
+    rand_seed: int,
+) -> None:
+    conn.execute(
+        """
+        INSERT INTO agent_run_results(
+            run_id, request_hash, region_id, request_json, result_json,
+            model_version, rand_seed, created_at
+        )
+        VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
+        ON CONFLICT(request_hash) DO NOTHING
+        """,
+        (
+            run_id,
+            request_hash,
+            region_id,
+            Jsonb(request),
+            Jsonb(result),
+            model_version,
+            rand_seed,
+        ),
+    )
+
+
 def upsert_ml_forecast_run_result(
     conn,
     run_id: str,
@@ -105,7 +151,7 @@ def upsert_ml_forecast_run_result(
     artifacts: dict[str, Any] | None,
 ) -> None:
     conn.execute(
-        '''
+        """
         INSERT INTO ml_forecast_run_results(
             run_id, model_ids, region_id, indicator_id, context_date,
             request_json, result_json, artifacts_json, created_at
@@ -119,32 +165,28 @@ def upsert_ml_forecast_run_result(
             request_json = EXCLUDED.request_json,
             result_json = EXCLUDED.result_json,
             artifacts_json = EXCLUDED.artifacts_json
-        ''',
+        """,
         (
-            run_id,
-            Jsonb(model_ids),
-            region_id,
-            indicator_id,
-            context_date,
-            Jsonb(request),
-            Jsonb(result),
-            Jsonb(artifacts or {}),
+            run_id, Jsonb(model_ids), region_id, indicator_id, context_date,
+            Jsonb(request), Jsonb(result), Jsonb(artifacts or {}),
         ),
     )
 
+
 def get_ml_forecast_run_result(conn, run_id: str) -> dict[str, Any]:
     row = conn.execute(
-        '''
+        """
         SELECT run_id, model_ids, region_id, indicator_id, context_date,
                request_json, result_json, artifacts_json, created_at
         FROM ml_forecast_run_results
         WHERE run_id = %s
-        ''',
+        """,
         (run_id,),
     ).fetchone()
     if not row:
         raise KeyError(f"ML forecast run result not found: {run_id}")
     return row
+
 
 def mfg_scenario_exists(conn, scenario_id: str, region_id: str, period_id: str, strategy_id: str, source_hash: str | None = None) -> bool:
     if source_hash:

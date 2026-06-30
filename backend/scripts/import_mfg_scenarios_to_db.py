@@ -6,7 +6,7 @@ import hashlib
 import json
 import re
 import sys
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -15,73 +15,45 @@ sys.path.insert(0, str(ROOT))
 
 from app.core import db
 
-# Путь к mfg/config.json — оттуда берём start_date по каждому period_id,
-# чтобы проставить дату в каждой строке CSV (CSV содержат только S, E, I, R, H, C, D
-# без колонки date; даты вычисляем как start_date + index_days).
 MFG_CONFIG_PATH = ROOT / "mock_data" / "mfg" / "config.json"
 
 
 def load_period_start_dates() -> dict[str, dict[str, date]]:
-    """Вернуть mapping region_id → {period_id → start_date} из mfg/config.json.
-
-    Если config недоступен — возвращает {}, тогда даты не проставляются (как было раньше).
-    """
     if not MFG_CONFIG_PATH.exists():
         return {}
     try:
-        with MFG_CONFIG_PATH.open("r", encoding="utf-8") as f:
-            cfg = json.load(f)
+        cfg = json.loads(MFG_CONFIG_PATH.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError):
         return {}
-
-    out: dict[str, dict[str, date]] = {}
+    result: dict[str, dict[str, date]] = {}
     for region_id, periods in (cfg.get("periods") or {}).items():
-        out[region_id] = {}
+        result[region_id] = {}
         for period in periods or []:
-            start_str = period.get("start_date")
-            if not start_str:
-                continue
             try:
-                out[region_id][period["id"]] = date.fromisoformat(start_str)
-            except (ValueError, KeyError):
+                result[region_id][period["id"]] = date.fromisoformat(period["start_date"])
+            except (KeyError, ValueError):
                 continue
-    return out
+    return result
 
 
-def enrich_series_with_dates(
-    series: list[dict[str, Any]],
-    region_id: str,
-    period_id: str,
-    period_starts: dict[str, dict[str, date]],
-) -> list[dict[str, Any]]:
-    """Если в строках нет колонки `date`, проставить её как start_date + index_days.
-
-    1 строка = 1 день. start_date берётся из mfg/config.json для (region_id, period_id).
-    Если в строках уже есть date — оставляем как есть.
-    """
-    if not series:
+def enrich_series_with_dates(series, region_id, period_id, period_starts):
+    if not series or any("date" in row for row in series):
         return series
-    if any("date" in row for row in series):
-        return series  # даты уже есть, не трогаем
-
     start = period_starts.get(region_id, {}).get(period_id)
     if not start:
-        return series  # нет start_date — оставляем без даты
-
-    enriched = []
-    for idx, row in enumerate(series):
-        new_row = {"date": (start + timedelta(days=idx)).isoformat(), **row}
-        enriched.append(new_row)
-    return enriched
+        return series
+    return [
+        {"date": (start + timedelta(days=index)).isoformat(), **row}
+        for index, row in enumerate(series)
+    ]
 
 STRATEGY_MAP = {
     "basicscenario": "base",
     "basic": "base",
     "events": "mass_events",
     "maskwearing": "mask_wearing",
-    "maskswearing": "mask_wearing",  # фикс: файл называется MasksWearing (с s)
+    "maskswearing": "mask_wearing",
     "mask": "mask_wearing",
-    "masks": "mask_wearing",
     "totalloc": "full_lockdown",
     "total_loc": "full_lockdown",
     "fulllockdown": "full_lockdown",
@@ -109,8 +81,6 @@ def parse_filename(path: Path, default_region_id: str) -> dict[str, str]:
     # Example: SEIR_HCD_TGC_Period1_BasicScenario.xlsx
     name = path.stem
     parts = name.split("_")
-    # Fix: было r"\\d+" — literal "\d+" вместо regex "одна или более цифр".
-    # Из-за этого Period1/Period2/... не распознавались, всё падало в "period_unknown".
     period_part = next((p for p in parts if re.match(r"(?i)^period\d+$", p)), None)
     if period_part:
         period_index = parts.index(period_part)
@@ -224,13 +194,7 @@ def load_any_file(path: Path) -> dict[str, Any]:
         return load_xlsx_file(path)
     raise ValueError(f"Unsupported file type: {path}")
 
-def build_payload(
-    path: Path,
-    meta: dict[str, str],
-    loaded: dict[str, Any],
-    digest: str,
-    period_starts: dict[str, dict[str, date]] | None = None,
-) -> dict[str, Any]:
+def build_payload(path: Path, meta: dict[str, str], loaded: dict[str, Any], digest: str, period_starts: dict[str, dict[str, date]] | None = None) -> dict[str, Any]:
     scenario = {
         "region_id": meta["region_id"],
         "period_id": meta["period_id"],
@@ -240,12 +204,11 @@ def build_payload(
         "source_period": meta["source_period"],
         "source_strategy": meta["source_strategy"],
     }
-
-    # Проставить даты в series если их нет (для CSV с одними S/E/I/R/H/C/D).
     series = loaded.get("series", [])
     if period_starts:
-        series = enrich_series_with_dates(series, meta["region_id"], meta["period_id"], period_starts)
-
+        series = enrich_series_with_dates(
+            series, meta["region_id"], meta["period_id"], period_starts
+        )
     return {
         "scenario": scenario,
         "model_description": "MFG-SEIR-HCD / статическая модель: данные импортированы из файла.",
@@ -274,12 +237,7 @@ def main() -> None:
     for pattern in ("*.json", "*.csv", "*.xlsx", "*.xlsm"):
         files.extend(input_dir.rglob(pattern))
 
-    # Загружаем start_date по каждому period_id один раз — потом подмешиваем в series.
     period_starts = load_period_start_dates()
-    if period_starts:
-        print(f"Loaded period start_dates from {MFG_CONFIG_PATH.name}: "
-              + ", ".join(f"{r}/{pid}={start}" for r, pmap in period_starts.items() for pid, start in pmap.items()))
-
     imported = 0
     skipped_existing = 0
     failed = 0

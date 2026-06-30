@@ -24,8 +24,6 @@ def main() -> None:
         db.upsert_config(conn, "ml_forecast", read_json(mock_dir / "ml_forecast" / "config.json"))
         db.upsert_config(conn, "mfg", read_json(mock_dir / "mfg" / "config.json"))
 
-        db.upsert_mock_result(conn, "agent_result", read_json(mock_dir / "agent" / "result.json"))
-
         for path in (mock_dir / "ml_forecast" / "results").glob("*.json"):
             db.upsert_ml_model_result(conn, path.stem, read_json(path))
 

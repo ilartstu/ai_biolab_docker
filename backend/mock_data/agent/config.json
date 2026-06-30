@@ -2,8 +2,10 @@
   "model": {
     "id": "agent",
     "title": "Агентная модель",
-    "engine": "mock-covasim",
-    "version": "mock-1.0"
+    "engine": "covasim",
+    "version": "3.1.8-adapter-1",
+    "start_day": "2020-03-12",
+    "cache": "exact-request PostgreSQL cache"
   },
   "regions": {
     "enabled": true,

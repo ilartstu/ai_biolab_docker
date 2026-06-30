@@ -18,16 +18,10 @@ def main() -> None:
     parser.add_argument("--region-id", default="spb")
     parser.add_argument("--indicator-id", default="new_diagnoses")
     parser.add_argument("--n-trajectories", type=int, default=3)
-    parser.add_argument("--data-dir", type=Path, default=settings.cgan_data_dir)
-    parser.add_argument("--output-dir", type=Path, default=settings.generated_dir / "cgan")
     args = parser.parse_args()
-
-    def progress(value: float, message: str) -> None:
-        print(f"[{value:5.1f}%] {message}")
-
     forecaster = CGANForecaster(
-        data_dir=args.data_dir,
-        output_dir=args.output_dir,
+        data_dir=settings.cgan_data_dir,
+        output_dir=settings.generated_dir / "cgan",
         n_trajectories=args.n_trajectories,
     )
     result = forecaster.predict(
@@ -36,14 +30,11 @@ def main() -> None:
         indicator_id=args.indicator_id,
         run_id=f"direct-cgan-{args.context_date}",
         n_trajectories=args.n_trajectories,
-        progress_callback=progress,
+        progress_callback=lambda value, message: print(f"[{value:5.1f}%] {message}"),
     )
-
     print(json.dumps({
         "model_id": result["model_id"],
-        "context_date": result["diagnostics"]["context_date"],
-        "input_shape": result["diagnostics"]["input_shape"],
-        "n_trajectories": result["diagnostics"]["n_trajectories"],
+        "diagnostics": result["diagnostics"],
         "forecast": result["forecast"],
         "artifact": result["artifact"],
     }, ensure_ascii=False, indent=2))

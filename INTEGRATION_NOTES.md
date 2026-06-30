@@ -1,68 +1,47 @@
-# Карта интеграции
+# Интеграция агентной модели
 
-## Удалено
-
-- старый backend из исходного архива;
-- старые вызовы моделирования из `Modeling.js`;
-- зависимость нового раздела моделирования от `https://server.ai-biolab.ru`.
-
-## Сохранено
-
-- все статические страницы старого сайта;
-- новости, публикации, изображения, логотипы и навигация;
-- старые URL страниц, включая `/the_spread_of_epidemics`.
-
-## Добавлено во frontend
+## Новые компоненты
 
 ```text
-src/api/modelingApi.js
-src/modeling/useAsyncModelRun.js
-src/modeling/ModelingHub.js
-src/modeling/ModelingHub.css
-src/modeling/components/TimeSeriesChart.js
+backend/app/modeling/agent/covasim_runner.py
+backend/scripts/run_agent_direct.py
+backend/scripts/smoke_agent_api.py
+agent_run_results в backend/db/schema.sql
 ```
 
-## Добавлено для CGAN
+## Путь выполнения
 
 ```text
-backend/app/modeling/cgan/          # перенос preprocessing + inference из covid19.cgan-main без FastAPI
-data/cgan/covid_ml_data_Spb.csv     # подготовленный датасет Санкт-Петербурга
-data/cgan/model/*.h5                # generator/discriminator из исходного проекта
-backend/generated/cgan/             # CSV-артефакты запусков
-ml_forecast_run_results             # таблица PostgreSQL для сохранённых run results/artifacts
+frontend
+  -> POST /api/models/agent/runs
+  -> validation
+  -> canonical request + SHA-256
+  -> SELECT agent_run_results by request_hash
+       -> hit: result_json из PostgreSQL
+       -> miss: Covasim -> 8 рядов -> INSERT agent_run_results
+  -> polling status
+  -> GET results
+  -> два Highcharts-графика
 ```
 
-CGAN подключён в существующий `POST /api/models/ml-forecast/runs` при `model_id=cgan`.
-LSTM и SEIR-HCD в этой вкладке пока остаются mock/precomputed.
+## Результаты
 
-## Соответствие вкладок API
-
-### Агентная модель
+Накопительные:
 
 ```text
-GET  /api/models/agent/config
-POST /api/models/agent/runs
-GET  /api/models/agent/runs/{run_id}/status
-GET  /api/models/agent/runs/{run_id}/results
-POST /api/models/agent/runs/{run_id}/cancel
+cum_infections, cum_critical, cum_recoveries, cum_deaths
 ```
 
-### SEIR-HCD / LSTM / CGAN
+Ежедневные:
 
 ```text
-GET  /api/models/ml-forecast/config
-POST /api/models/ml-forecast/runs
-GET  /api/models/ml-forecast/runs/{run_id}/status
-GET  /api/models/ml-forecast/runs/{run_id}/results
-GET  /api/models/ml-forecast/runs/{run_id}/artifacts/forecast_csv
-POST /api/models/ml-forecast/runs/{run_id}/cancel
-GET  /api/models/ml-forecast/modeling
-GET  /api/models/ml-forecast/validation
+new_infections, new_critical, new_recoveries, new_deaths
 ```
 
-### Модель среднего поля
+## Совместимость
 
-```text
-GET /api/models/mfg/config
-GET /api/models/mfg/scenario-results
-```
+- существующие агентные HTTP-ручки не менялись;
+- frontend-контракт не менялся;
+- MFG продолжает читать импортированные сценарии из PostgreSQL;
+- CGAN продолжает выполнять реальный TensorFlow inference;
+- LSTM/SEIR-HCD заглушки сохранены как предусмотрено текущим этапом.
