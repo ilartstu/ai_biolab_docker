@@ -1,0 +1,141 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# АВТОНОМНЫЙ запуск по IP (HTTP), без домена и без nginx Overleaf.
+# Назначение: проверить, что прод-сборка реально поднимается и работает,
+# по адресу http://213.155.10.12[:HTTP_PORT].
+#
+# Боевой compose.prod.yml коллеги НЕ трогаем — он для деплоя через домен
+# ai-biolab.ru + nginx Overleaf. Этот файл — отдельный, для теста по IP.
+#
+# Отличия от compose.prod.yml:
+#   • frontend ПУБЛИКУЕТ порт на хост (ports), а не expose в external-сеть;
+#   • frontend сам проксирует /api на api (через блок в nginx.prod.conf);
+#   • своя bridge-сеть web вместо external ai_biolab_edge — не зависим от Overleaf;
+#   • SECURE_COOKIE=false (по HTTP secure-куки браузером не ставятся);
+#   • отдельный volume, чтобы тест не пересекался с боевыми данными.
+#
+# Запуск:  docker compose -f compose.ip.yml --env-file .env.prod up -d --build
+# ─────────────────────────────────────────────────────────────────────────────
+name: ai-biolab-ip
+
+services:
+  db:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      - backend
+
+  db-init:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      MOCK_DATA_DIR: mock_data
+    command: >
+      sh -c "python scripts/init_db.py &&
+             python scripts/import_mock_data_to_db.py &&
+             python scripts/seed_all.py &&
+             python scripts/import_mfg_scenarios_to_db.py
+             --input-dir /data_to_import
+             --region-id novosibirsk_oblast"
+    volumes:
+      - ./backend/mock_data:/app/mock_data:ro
+      - ./data_to_import:/data_to_import:ro
+      - ./data:/data:ro
+    restart: "no"
+    networks:
+      - backend
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      MOCK_DATA_DIR: mock_data
+      GENERATED_DIR: /app/generated
+      CGAN_DATA_DIR: /data/cgan
+      CGAN_N_TRAJECTORIES: ${CGAN_N_TRAJECTORIES:-100}
+      AGENT_START_DAY: ${AGENT_START_DAY:-2020-03-12}
+      AGENT_RAND_SEED: ${AGENT_RAND_SEED:-1}
+      AGENT_MODEL_VERSION: ${AGENT_MODEL_VERSION:-covasim-3.1.8-adapter-1}
+      AGENT_MAX_INTERVENTIONS: ${AGENT_MAX_INTERVENTIONS:-50}
+      MOCK_SLEEP_SECONDS: ${MOCK_SLEEP_SECONDS:-0}
+      MAX_PARALLEL_RUNS: ${MAX_PARALLEL_RUNS:-2}
+      MAX_QUEUE_SIZE: ${MAX_QUEUE_SIZE:-10}
+      # По HTTP (без TLS) браузер не ставит secure-куки → для IP-теста false.
+      SECURE_COOKIE: ${SECURE_COOKIE:-false}
+    expose:
+      - "8000"
+    volumes:
+      - ./backend/mock_data:/app/mock_data:ro
+      - ./backend/generated:/app/generated
+      - ./data_to_import:/data_to_import:ro
+      - ./data:/data:ro
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/health').status == 200 else 1)"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks:
+      - backend
+      - web
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+      args:
+        # "/" → API_BASE_URL пустой → запросы относительные (same-origin).
+        REACT_APP_API_URL: ${REACT_APP_API_URL:-/}
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      # Публичный порт. Если 80 занят (напр. Overleaf) — задай HTTP_PORT=8080 в .env.prod.
+      - "${HTTP_PORT:-80}:80"
+    networks:
+      - web
+
+networks:
+  backend:
+    name: ai_biolab_backend_ip
+    internal: true
+  web:
+    name: ai_biolab_web_ip
+
+volumes:
+  postgres_data:
+    name: ai_biolab_ip_pg18_data
