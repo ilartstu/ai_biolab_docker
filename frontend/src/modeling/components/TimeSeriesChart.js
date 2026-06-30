@@ -1,9 +1,14 @@
 import React, {useMemo, useRef} from 'react';
 import {Button} from 'react-bootstrap';
 import Highcharts from 'highcharts';
+import HighchartsMore from 'highcharts/highcharts-more';
 import HighchartsReact from 'highcharts-react-official';
 
 const DEFAULT_HEIGHT = 420;
+
+if (typeof HighchartsMore === 'function') {
+  HighchartsMore(Highcharts);
+}
 
 export function toTimestamp(value) {
   if (typeof value === 'number') {
@@ -76,6 +81,14 @@ export function TimeSeriesChart({
         turboThreshold: 0,
         marker: {enabled: false},
         states: {
+          inactive: {opacity: 1},
+        },
+      },
+      arearange: {
+        lineWidth: 0,
+        marker: {enabled: false},
+        states: {
+          hover: {enabled: false},
           inactive: {opacity: 1},
         },
       },

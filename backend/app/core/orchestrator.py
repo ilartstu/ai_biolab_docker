@@ -108,7 +108,7 @@ class Orchestrator:
             "created_at": run.created_at,
         })
 
-    async def create_run(self, *, section: str, payload: dict[str, Any], request: Request, response: Response, idempotency_key: str | None, worker_func: Callable[[dict[str, Any], str], Awaitable[dict[str, Any]]]) -> tuple[dict[str, Any], int]:
+    async def create_run(self, *, section: str, payload: dict[str, Any], request: Request, response: Response, idempotency_key: str | None, worker_func: Callable[[dict[str, Any], str, Callable[[float, str], None] | None], Awaitable[dict[str, Any]]]) -> tuple[dict[str, Any], int]:
         ip = self.client_ip(request)
         session_id = self.ensure_session(request, response)
         self.check_rate(f"post-runs:{ip}", 5, 60)
@@ -147,7 +147,7 @@ class Orchestrator:
         asyncio.create_task(self._run_worker(run.run_id, worker_func))
         return self.create_response(run), 201
 
-    async def _run_worker(self, run_id: str, worker_func: Callable[[dict[str, Any], str], Awaitable[dict[str, Any]]]) -> None:
+    async def _run_worker(self, run_id: str, worker_func: Callable[[dict[str, Any], str, Callable[[float, str], None] | None], Awaitable[dict[str, Any]]]) -> None:
         run = self.runs[run_id]
         async with self.semaphore:
             if run.status == "cancelled":
@@ -158,7 +158,12 @@ class Orchestrator:
             run.progress = 10
             run.message = "Выполняется расчёт."
             try:
-                result = await worker_func(run.payload, run.run_id)
+                def progress_callback(progress: float, message: str) -> None:
+                    run.progress = max(0, min(89, progress))
+                    run.message = message
+                    run.last_heartbeat_at = now_utc()
+
+                result = await worker_func(run.payload, run.run_id, progress_callback)
                 if run.status == "cancel_requested":
                     run.status = "cancelled"
                     run.finished_at = now_utc()

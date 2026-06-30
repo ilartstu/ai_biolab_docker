@@ -97,6 +97,23 @@ smoke:
 	@echo "── GET /api/models/agent/config ──"
 	@curl -s http://localhost:8001/api/models/agent/config | python3 -m json.tool || true
 
+## init-db           применить текущую схему db/schema.sql к PostgreSQL
+init-db:
+	$(COMPOSE) exec api python scripts/init_db.py
+
+## cgan-smoke        быстрый прямой CGAN-инференс внутри api-контейнера (3 траектории)
+cgan-smoke:
+	$(COMPOSE) exec api python scripts/run_cgan_forecast.py --context-date 2024-03-06 --n-trajectories 3
+
+## cgan-api-smoke    проверить полный async API-путь CGAN через localhost:8001
+cgan-api-smoke:
+	$(COMPOSE) exec api python scripts/init_db.py
+	python3 backend/scripts/smoke_cgan_api.py
+
+## cgan-db-check     показать последние сохранённые ML/CGAN runs в PostgreSQL
+cgan-db-check:
+	$(COMPOSE) exec db psql -U ai_biolab -d ai_biolab -c "SELECT run_id, model_ids, region_id, indicator_id, context_date, created_at FROM ml_forecast_run_results ORDER BY created_at DESC LIMIT 10;"
+
 ## ───── Сидеры справочных данных ─────
 
 ## seed              запустить ВСЕ наши сидеры (regions + timeseries + seir_params)
@@ -182,7 +199,7 @@ prune:
 .PHONY: help up up-build up-fg down restart ps build rebuild \
         logs logs-api logs-front logs-db logs-init \
         sh-api sh-front sh-db psql psql-host \
-        health smoke \
+        health smoke init-db cgan-smoke cgan-api-smoke cgan-db-check \
         seed seed-regions seed-timeseries seed-seir seed-mfg seed-mfg-replace reset-mfg seed-check \
         front-reset front-install \
         clean clean-pg-legacy prune
