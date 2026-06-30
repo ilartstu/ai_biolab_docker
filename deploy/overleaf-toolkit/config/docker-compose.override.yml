@@ -1,0 +1,18 @@
+services:
+  nginx:
+    networks:
+      default:
+      ai_biolab_edge:
+
+    volumes:
+      # Сертификат ai-biolab.ru после выпуска Certbot.
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+
+      # Каталог HTTP-01 challenge для Certbot.
+      - /var/www/certbot:/var/www/certbot:ro
+
+
+networks:
+  ai_biolab_edge:
+    name: ai_biolab_edge
+    external: true

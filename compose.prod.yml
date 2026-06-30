@@ -1,0 +1,158 @@
+name: ai-biolab-prod
+
+services:
+  db:
+    image: postgres:18-alpine
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+
+    volumes:
+      - postgres_data:/var/lib/postgresql
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+    networks:
+      - backend
+
+
+  db-init:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+
+    depends_on:
+      db:
+        condition: service_healthy
+
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      MOCK_DATA_DIR: mock_data
+
+    command: >
+      sh -c "python scripts/init_db.py &&
+             python scripts/import_mock_data_to_db.py &&
+             python scripts/seed_all.py &&
+             python scripts/import_mfg_scenarios_to_db.py
+             --input-dir /data_to_import
+             --region-id novosibirsk_oblast"
+
+    volumes:
+      - ./backend/mock_data:/app/mock_data:ro
+      - ./data_to_import:/data_to_import:ro
+      - ./data:/data:ro
+
+    restart: "no"
+
+    networks:
+      - backend
+
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+
+    restart: unless-stopped
+
+    depends_on:
+      db:
+        condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
+
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+
+      MOCK_DATA_DIR: mock_data
+      GENERATED_DIR: /app/generated
+      CGAN_DATA_DIR: /data/cgan
+
+      CGAN_N_TRAJECTORIES: ${CGAN_N_TRAJECTORIES:-100}
+
+      AGENT_START_DAY: ${AGENT_START_DAY:-2020-03-12}
+      AGENT_RAND_SEED: ${AGENT_RAND_SEED:-1}
+      AGENT_MODEL_VERSION: ${AGENT_MODEL_VERSION:-covasim-3.1.8-adapter-1}
+      AGENT_MAX_INTERVENTIONS: ${AGENT_MAX_INTERVENTIONS:-50}
+
+      MOCK_SLEEP_SECONDS: ${MOCK_SLEEP_SECONDS:-0}
+      MAX_PARALLEL_RUNS: ${MAX_PARALLEL_RUNS:-2}
+      MAX_QUEUE_SIZE: ${MAX_QUEUE_SIZE:-10}
+
+      SECURE_COOKIE: "true"
+
+    expose:
+      - "8000"
+
+    volumes:
+      - ./backend/mock_data:/app/mock_data:ro
+      - ./backend/generated:/app/generated
+      - ./data_to_import:/data_to_import:ro
+      - ./data:/data:ro
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/health').status == 200 else 1)"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+    networks:
+      backend:
+      edge:
+        aliases:
+          - ai-biolab-api
+
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+      args:
+        REACT_APP_API_URL: ${REACT_APP_API_URL:-/}
+
+    restart: unless-stopped
+
+    depends_on:
+      api:
+        condition: service_healthy
+
+    expose:
+      - "80"
+
+    networks:
+      edge:
+        aliases:
+          - ai-biolab-frontend
+
+
+networks:
+  backend:
+    name: ai_biolab_backend_prod
+    internal: true
+
+  edge:
+    name: ai_biolab_edge
+    external: true
+
+
+volumes:
+  postgres_data:
+    name: ai_biolab_prod_pg18_data
