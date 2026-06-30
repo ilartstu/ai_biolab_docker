@@ -1,0 +1,105 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# ПРОД-СТЕК (Фаза 1: публикация по IP, HTTP).
+#
+# Отличия от dev (docker-compose.yml):
+#   • наружу торчит ТОЛЬКО web (nginx) на порту 80;
+#   • db и api НЕ публикуют порты — живут во внутренней docker-сети;
+#   • фронт собирается в статику (Dockerfile.prod) и раздаётся nginx, без npm start;
+#   • пароль БД обязателен (берётся из .env.prod, дефолта нет).
+#
+# Запуск:   docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+# Команды:  make prod-up / make deploy / make backup  (см. Makefile)
+# ─────────────────────────────────────────────────────────────────────────────
+services:
+  db:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-ai_biolab}
+      POSTGRES_USER: ${POSTGRES_USER:-ai_biolab}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD обязателен — задай его в .env.prod}
+    volumes:
+      # PG 18 хранит данные в /var/lib/postgresql/<major>/docker;
+      # монтируем родительский каталог, чтобы поддерживать pg_upgrade.
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ai_biolab} -d ${POSTGRES_DB:-ai_biolab}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  db-init:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-ai_biolab}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-ai_biolab}
+      MOCK_DATA_DIR: mock_data
+    # Все шаги идемпотентны (ON CONFLICT DO NOTHING / проверка SHA-256) — безопасно повторять при каждом деплое.
+    command: >
+      sh -c "python scripts/init_db.py &&
+             python scripts/import_mock_data_to_db.py &&
+             python scripts/seed_all.py &&
+             python scripts/import_mfg_scenarios_to_db.py --input-dir /data_to_import --region-id novosibirsk_oblast"
+    volumes:
+      - ./backend/mock_data:/app/mock_data:ro
+      - ./data_to_import:/data_to_import
+      - ./data:/data:ro
+    restart: "no"
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-ai_biolab}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-ai_biolab}
+      MOCK_DATA_DIR: mock_data
+      GENERATED_DIR: /app/generated
+      CGAN_DATA_DIR: /data/cgan
+      CGAN_N_TRAJECTORIES: ${CGAN_N_TRAJECTORIES:-100}
+      MOCK_SLEEP_SECONDS: ${MOCK_SLEEP_SECONDS:-3}
+      MAX_PARALLEL_RUNS: ${MAX_PARALLEL_RUNS:-2}
+      MAX_QUEUE_SIZE: ${MAX_QUEUE_SIZE:-10}
+      # Фаза 1 (HTTP): false. Фаза 2 (HTTPS): true.
+      SECURE_COOKIE: ${SECURE_COOKIE:-false}
+      # Пусто для same-origin. Фаза 2: CORS_ORIGINS=https://ai-biolab.ru,https://www.ai-biolab.ru
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
+    volumes:
+      - ./backend/mock_data:/app/mock_data:ro
+      - ./backend/generated:/app/generated
+      - ./data_to_import:/data_to_import
+      - ./data:/data:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/api/health').status==200 else 1)"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
+  web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+      args:
+        # "/" → относительные запросы к API (same-origin). См. Dockerfile.prod.
+        REACT_APP_API_URL: "/"
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "${HTTP_PORT:-80}:80"
+
+volumes:
+  postgres_data:
+    # Имя совпадает с dev — единый именованный volume для данных PG 18.
+    name: ai_biolab_anna_pg18_data

@@ -13,5 +13,15 @@ class Settings(BaseModel):
     max_parallel_runs: int = int(os.getenv("MAX_PARALLEL_RUNS", "2"))
     max_queue_size: int = int(os.getenv("MAX_QUEUE_SIZE", "10"))
     secure_cookie: bool = os.getenv("SECURE_COOKIE", "false").lower() == "true"
+    # Список origin'ов для CORS (через запятую в env). Пусто = CORS никому не разрешён
+    # (нормально для same-origin прода, где фронт и API на одном домене).
+    cors_origins: list[str] = [
+        origin.strip()
+        for origin in os.getenv(
+            "CORS_ORIGINS",
+            "http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5173",
+        ).split(",")
+        if origin.strip()
+    ]
 
 settings = Settings()

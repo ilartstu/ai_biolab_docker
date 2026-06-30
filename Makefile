@@ -1,5 +1,6 @@
 .DEFAULT_GOAL := help
 COMPOSE := docker compose
+COMPOSE_PROD := docker compose -f docker-compose.prod.yml --env-file .env.prod
 
 ## ───── Базовые команды ─────
 
@@ -179,6 +180,47 @@ front-reset:
 front-install:
 	$(COMPOSE) exec frontend npm install $(p) --legacy-peer-deps
 
+## ───── Production (docker-compose.prod.yml + .env.prod) ─────
+
+## prod-up           ПЕРВЫЙ запуск прод-стека (сборка + поднятие, nginx на :80)
+prod-up:
+	$(COMPOSE_PROD) up -d --build
+
+## prod-down         остановить прод-стек (БД сохраняется; volume НЕ удаляется)
+prod-down:
+	$(COMPOSE_PROD) down
+
+## prod-ps           статус прод-контейнеров
+prod-ps:
+	$(COMPOSE_PROD) ps
+
+## prod-logs         tail логи прод-стека
+prod-logs:
+	$(COMPOSE_PROD) logs -f --tail=100
+
+## prod-health       проверить /api/health через nginx (localhost:80)
+prod-health:
+	@curl -s http://localhost/api/health || echo "недоступен"
+	@echo ""
+
+## deploy            безопасный деплой новой версии: бэкап → git pull → пересборка → up
+deploy: backup
+	git pull
+	$(COMPOSE_PROD) up -d --build
+	$(COMPOSE_PROD) ps
+
+## backup            дамп БД в backups/ai_biolab_<дата>.sql.gz (db должна быть запущена)
+backup:
+	@mkdir -p backups
+	@bash -c 'set -a && source .env.prod && set +a && \
+		$(COMPOSE_PROD) exec -T db pg_dump -U $$POSTGRES_USER -d $$POSTGRES_DB | gzip > backups/ai_biolab_$$(date +%Y%m%d_%H%M%S).sql.gz' \
+		&& echo "✓ бэкап создан в backups/"
+
+## restore           восстановить БД из дампа: make restore f=backups/ai_biolab_xxx.sql.gz
+restore:
+	@bash -c 'set -a && source .env.prod && set +a && \
+		gunzip -c $(f) | $(COMPOSE_PROD) exec -T db psql -U $$POSTGRES_USER -d $$POSTGRES_DB'
+
 ## ───── Очистка ─────
 
 ## clean             остановить + удалить ВСЕ volumes (СБРАСЫВАЕТ БД!)
@@ -202,4 +244,5 @@ prune:
         health smoke init-db cgan-smoke cgan-api-smoke cgan-db-check \
         seed seed-regions seed-timeseries seed-seir seed-mfg seed-mfg-replace reset-mfg seed-check \
         front-reset front-install \
+        prod-up prod-down prod-ps prod-logs prod-health deploy backup restore \
         clean clean-pg-legacy prune

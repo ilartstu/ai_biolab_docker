@@ -1,0 +1,23 @@
+# ── Stage 1: сборка статики CRA ──
+FROM node:20-alpine AS build
+WORKDIR /app
+
+# REACT_APP_* подставляются на этапе СБОРКИ (в CRA это compile-time переменные).
+# Значение "/" → API_BASE_URL в коде станет пустым (см. src/api/modelingApi.js),
+# поэтому все запросы и ссылки на скачивание будут относительными (same-origin).
+# Одна и та же сборка работает и по IP, и по домену — пересобирать не нужно.
+ARG REACT_APP_API_URL=/
+ENV REACT_APP_API_URL=$REACT_APP_API_URL
+
+COPY package.json package-lock.json ./
+RUN npm ci --legacy-peer-deps
+
+COPY . .
+RUN npm run build
+
+# ── Stage 2: раздача статики + reverse-proxy на API ──
+FROM nginx:alpine
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=build /app/build /usr/share/nginx/html
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]

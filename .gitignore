@@ -3,6 +3,8 @@ __pycache__/
 *.pyo
 .env
 .env.local
+.env.prod
+backups/
 node_modules/
 build/
 dist/
