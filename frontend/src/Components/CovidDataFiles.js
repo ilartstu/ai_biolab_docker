@@ -16,7 +16,7 @@ function CovidDataFiles(files) {
               <Col lg={8} md={8} xs={8} sm={8}>
                 <Stack direction="horizontal" gap={3}>
                   <div>
-                    <Image variant="top" style={{ width: '3rem' }, {height: '3rem'}} className="my-1"
+                    <Image variant="top" style={{ width: '3rem', height: '3rem'}} className="my-1"
                     src={files.file.img}
                     rounded
                     fluid/>

@@ -9,6 +9,8 @@ services:
     ports:
       - "${POSTGRES_PORT:-15433}:5432"
     volumes:
+      # PG 18 хранит данные в /var/lib/postgresql/<major>/docker;
+      # монтируем родительский каталог, чтобы поддерживать pg_upgrade.
       - postgres_data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ai_biolab} -d ${POSTGRES_DB:-ai_biolab}"]
@@ -26,13 +28,21 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-ai_biolab}:${POSTGRES_PASSWORD:-ai_biolab}@db:5432/${POSTGRES_DB:-ai_biolab}
       MOCK_DATA_DIR: mock_data
+    # Последовательность инициализации:
+    #   1. init_db                          — создание схемы (CREATE TABLE IF NOT EXISTS)
+    #   2. import_mock_data_to_db           — Анины моки (agent/ml/mfg config + result JSONs)
+    #   3. seed_all                         — наши справочники: regions (75), region_timeseries (3 CSV), seir_params
+    #   4. import_mfg_scenarios_to_db       — MFG-сценарии из data_to_import/ (16 CSV SEIR-HCD по 4 periods × 4 strategies)
+    # Все шаги идемпотентны (ON CONFLICT DO NOTHING / проверка SHA-256), безопасно повторять.
     command: >
       sh -c "python scripts/init_db.py &&
              python scripts/import_mock_data_to_db.py &&
-             python scripts/import_mfg_scenarios_to_db.py --input-dir /data_to_import --region-id novosibirsk_oblast --replace"
+             python scripts/seed_all.py &&
+             python scripts/import_mfg_scenarios_to_db.py --input-dir /data_to_import --region-id novosibirsk_oblast"
     volumes:
       - ./backend/mock_data:/app/mock_data:ro
       - ./data_to_import:/data_to_import
+      - ./data:/data:ro
     restart: "no"
 
   api:
@@ -70,8 +80,8 @@ services:
       test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/api/health').status==200 else 1)"]
       interval: 10s
       timeout: 5s
-      retries: 15
-      start_period: 30s
+      retries: 10
+      start_period: 15s
 
   frontend:
     build:
@@ -93,5 +103,5 @@ services:
 
 volumes:
   postgres_data:
-    name: ai_biolab_agent_pg18_data
+    name: ai_biolab_anna_pg18_data
   frontend_node_modules:
